@@ -1,0 +1,111 @@
+/* Todo Paso 2*/
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Header */
+.header {
+    background-color: #9fb7e6;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Logo Dimarsa como link */
+.header a {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Logo */
+.logo {
+  height: 30px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+}
+
+/* Soporte Dimarsa*/
+.header-title {
+  color: black;
+  font-size: 0.9rem;
+}
+
+/* Línea de colores */
+.header-accent {
+    height: 4px;
+    width: 100%;
+    background: linear-gradient(
+        90deg,
+        #003A8F,
+        #6A5ACD,
+        #7AA21D
+    );
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 60px); /* ajusta según tu header */
+}
+
+.sidebar{
+  background-color: #9fb7e6;
+  border-right: 1px solid rgba(0,0,0,0.08);
+  padding: 16px;
+}
+
+.sidebar-title{
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6B7280;
+  margin-bottom: 10px;
+}
+
+.sidebar-link{
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #111827;
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+
+.sidebar-link:hover{
+  background: rgba(106, 90, 205, 0.10); /* acento morado suave */
+}
+
+.content{
+  padding: 24px;
+}
+
+/* Estado Activa / No activa */
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.08);
+}
+
+.status-active {
+  background-color: #198754;
+}
+
+.status-inactive {
+  background-color: #dc3545;
+}
+
+.form-control,
+.form-select {
+  width: 100%;
+  max-width: 100%;
+}
+
+
+

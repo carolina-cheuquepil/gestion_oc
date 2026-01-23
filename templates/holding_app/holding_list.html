@@ -1,0 +1,51 @@
+{% extends "layouts/base.html" %}
+
+
+{% block title %}Lista empresas{% endblock %} 
+
+{% block content %}
+<h2 class="mb-3">Holding</h2>
+
+<a class="btn btn-primary mb-3" href="{% url 'holding_create' %}">
+  + Nuevo Holding
+</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Código</th>
+      <th>Nombre</th>
+      <th>Razón social</th>
+      <th>RUT</th>
+      <th>Activa</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for h in holdings %}
+    <tr>
+      <td>{{ h.holding_id }}</td>
+      <td>{{ h.codigo_empresa }}</td>
+      <td>{{ h.nombre }}</td>
+      <td>{{ h.razon_social }}</td>
+      <td>{{ h.rut }}</td>
+      <td class="text-center">
+  {% if h.empresa_estado %}
+    <span class="status-dot status-active" title="Activa"></span>
+  {% else %}
+    <span class="status-dot status-inactive" title="No activa"></span>
+  {% endif %}
+</td>
+
+
+      <td>
+  <a class="btn btn-sm btn-primary"
+     href="{% url 'holding_update' h.pk %}">Editar</a>
+</td>
+
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

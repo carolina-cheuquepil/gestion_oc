@@ -1,0 +1,44 @@
+{% extends "layouts/base.html" %}
+
+
+{% block title %}Lista proveedores{% endblock %} 
+
+{% block content %}
+<h2 class="mb-3">Proveedores</h2>
+<!--Parte 5  -->
+
+<a class="btn btn-primary mb-3" href="{% url 'proveedor_create' %}">
+  + Nuevo proveedor
+</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Razón social</th>
+      <th>RUT</th>
+      <th>Activa</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in proveedores %}
+    <tr>
+      <td>{{ p.proveedor_id }}</td>
+      <td>{{ p.nombre }}</td>
+      <td>{{ p.razon_social }}</td>
+      <td>{{ p.rut }}</td>
+      <td class="text-center">
+  {% if p.empresa_estado %}
+    <span class="status-dot status-active" title="Activa"></span>
+  {% else %}
+    <span class="status-dot status-inactive" title="No activa"></span>
+  {% endif %}
+      </td>
+      <td><a class="btn btn-sm btn-primary" href="{% url 'proveedor_update' pk=p.pk %}">Editar</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
