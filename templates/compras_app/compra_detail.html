@@ -1,0 +1,125 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Detalle de la compra{% endblock %} 
+
+{% block content %}
+
+
+<style>
+  .ficha { border-collapse: collapse; width: 100%; max-width: 900px; }
+  .ficha td, .ficha th { border: 1px solid #000; padding: 6px; vertical-align: top; }
+  .lbl { font-weight: 700; width: 170px; background: #f5f5f5; }
+  .box { height: 140px; }
+  .right { text-align: right; }
+  .muted { color: #444; }
+</style>
+
+<h1>Compra Nº {{ compra.compra_id }}</h1>
+
+<table class="ficha">
+  <tr>
+    <td class="lbl">COMPRA N°</td>
+    <td>{{ compra.compra_id }}</td>
+
+    <td class="lbl">ESTADO</td>
+    <td>{{ compra.estado_documento }}</td>
+  </tr>
+
+  <tr>
+    <td class="lbl">DOCUMENTO</td>
+    <td>{{ compra.tipo_documento }}</td>
+
+    <td class="lbl">FECHA DE EMISIÓN</td>
+    <td>{{ compra.fecha_emision|date:"d-m-Y" }}</td>
+  </tr>
+
+  <tr>
+    <td class="lbl">FOLIO</td>
+    <td>{{ compra.folio|default:"—" }}</td>
+
+    <td class="lbl">FECHA REQUERIDA</td>
+    <td>{{ compra.fecha_requerida|date:"d-m-Y"|default:"—" }}</td>
+  </tr>
+
+  <tr>
+    <td class="lbl">PROVEEDOR</td>
+    <td colspan="1">{{ compra.proveedor }}</td>
+
+    <td class="lbl">MONEDA</td>
+    <td>{{ compra.moneda }}</td>
+  </tr>
+
+  <tr>
+    <td class="lbl">RAZÓN SOCIAL</td>
+    <td colspan="3">{{ compra.razon_social }}</td>
+  </tr>
+
+  <tr>
+    <td class="lbl">DETALLE DE LA COMPRA</td>
+    <td colspan="3" class="box muted">
+      (Aquí luego pones la tabla de ítems / compra_detalle)
+    </td>
+  </tr>
+
+  <tr>
+    <td class="lbl">OBSERVACIÓN</td>
+    <td colspan="2">{{ compra.observacion|default:"—" }}</td>
+
+    <td>
+      <table style="width:100%; border-collapse: collapse;">
+        <tr>
+          <td class="lbl right" style="border:1px solid #000;">NETO</td>
+          <td class="right" style="border:1px solid #000;">{{ compra.total_neto }}</td>
+        </tr>
+        <tr>
+          <td class="lbl right" style="border:1px solid #000;">IVA</td>
+          <td class="right" style="border:1px solid #000;">{{ compra.total_iva }}</td>
+        </tr>
+        <tr>
+          <td class="lbl right" style="border:1px solid #000;">TOTAL</td>
+          <td class="right" style="border:1px solid #000;">{{ compra.total }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="lbl">CREADO EN</td>
+    <td>{{ compra.creado_en|date:"d-m-Y H:i" }}</td>
+
+    <td class="lbl">ACTUALIZADO EN</td>
+    <td>{{ compra.actualizado_en|date:"d-m-Y H:i" }}</td>
+  </tr>
+</table>
+
+<br>
+
+<a class="btn btn-sm btn-primary" href="{% url 'compra_update' compra.compra_id %}">Editar</a>
+<a href="{% url 'compras_ui' %}">Volver</a>
+
+<h3>Historial</h3>
+
+<table class="ficha" style="max-width: 900px;">
+  <tr>
+    <td class="lbl">Fecha</td>
+    <td class="lbl">Documento</td>
+    <td class="lbl">Folio</td>
+    <td class="lbl">Estado</td>
+  </tr>
+
+  {% for h in compra.historial.all %}
+  <tr>
+    <td>{{ h.fecha_evento|date:"d-m-Y H:i" }}</td>
+    <td>{{ h.tipo_documento }}</td>
+    <td>{{ h.folio|default:"—" }}</td>
+    <td>{{ h.estado_documento }}</td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="4" class="muted">Sin historial aún.</td>
+  </tr>
+  {% endfor %}
+</table>
+
+
+{% endblock %}

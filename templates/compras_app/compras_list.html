@@ -1,0 +1,39 @@
+{% extends "layouts/base.html" %}
+
+
+{% block title %}Lista de compras{% endblock %} 
+
+{% block content %}
+<h2 class="mb-3">Compras</h2>
+<!--FrontEnd: Paso 2 y 5 ahahhaha -->
+
+<a class="btn btn-primary mb-3" href="/">
+  + Nueva compra
+</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Documeto</th>
+      <th>Razón Social</th>
+      <th>Proveedor</th>
+      <th>Folio</th>
+      <th>Emisión</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in compras %}
+    <tr>
+      <td>{{ c.compra_id }}</td>
+      <td>{{ c.tipo_documento }}</td>
+      <td>{{ c.razon_social }}</td>
+      <td>{{ c.proveedor }}</td>
+      <td>{{ c.folio }}</td>
+      <td>{{ c.fecha_emision }}</td>
+      <td><a class="btn btn-sm btn-primary" href="{% url 'compra_detail' c.compra_id %}">Detalle</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

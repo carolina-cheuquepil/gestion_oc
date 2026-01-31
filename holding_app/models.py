@@ -12,3 +12,6 @@ class Holding(models.Model):
     class Meta:
         managed = False
         db_table = "holding_app_holding"
+    
+    def __str__(self):
+        return self.razon_social 

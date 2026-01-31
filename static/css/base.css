@@ -107,5 +107,13 @@
   max-width: 100%;
 }
 
+/* Tabla detalle */
+.ficha { border-collapse: collapse; width: 100%; max-width: 900px; }
+.ficha td, .ficha th { border: 1px solid #000; padding: 6px; vertical-align: top; }
+.lbl { font-weight: 700; width: 170px; background: #f5f5f5; }
+.box { height: 140px; }
+.right { text-align: right; }
+.muted { color: #444; }
+
 
 

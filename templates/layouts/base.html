@@ -32,16 +32,16 @@
   </div>
   <div class="header-accent"></div>
 </header>
-
+<!--FrontEnd: Paso 5 y fin -->
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-title">Maestros</div>
-
+      <a class="sidebar-link" href="{% url 'compras_ui' %}">Compras IT</a>
       <a class="sidebar-link" href="{% url 'holdings_ui' %}">Holding</a>
       <a class="sidebar-link" href="/">Sucursales</a>
       <a class="sidebar-link" href="{% url 'proveedores_ui' %}">Proveedores</a>
-      <a class="sidebar-link" href="/">Activos fijos</a>
+      <a class="sidebar-link" href="{% url 'productos_ui' %}">Activos fijos</a>
       <a class="sidebar-link" href="{% url 'personas_ui' %}">Persona</a>
     </div>
   </aside>
