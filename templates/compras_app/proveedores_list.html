@@ -36,7 +36,10 @@
     <span class="status-dot status-inactive" title="No activa"></span>
   {% endif %}
       </td>
-      <td><a class="btn btn-sm btn-primary" href="{% url 'proveedor_update' pk=p.pk %}">Editar</a></td>
+      <td><a class="btn btn-sm btn-outline-primary"
+        href="{% url 'proveedor_productos' pk=p.pk %}">Ver productos</a>
+        <a class="btn btn-sm btn-primary"
+        href="{% url 'proveedor_update' pk=p.pk %}">Editar</a></td>
     </tr>
     {% endfor %}
   </tbody>

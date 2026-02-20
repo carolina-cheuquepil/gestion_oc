@@ -1,0 +1,41 @@
+<p>Estimados:</p>
+
+<p>Solicito autorización de la siguiente Orden de Compra:</p>
+
+<ul>
+    <li><strong>OC Nº:</strong> {{ compra.folio }}</li>
+    <li><strong>Proveedor:</strong> {{ compra.proveedor }}</li>
+    <li><strong>Razón Social:</strong> {{ compra.razon_social }}</li>
+    <li><strong>Fecha emisión:</strong> {{ compra.fecha_emision }}</li>
+</ul>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+        <th>Producto</th>
+        <th>Cantidad</th>
+        <th>Precio Unitario</th>
+    </tr>
+    {% for it in compra.items.all %}
+    <tr>
+        <td>{{ it.producto.nombre }}</td>
+        <td>{{ it.cantidad }}</td>
+        <td>{{ it.precio_unitario }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+
+
+<p><strong>Neto:</strong> {{ compra.total_neto|floatformat:0 }}</p>
+<p><strong>IVA:</strong> {{ compra.total_iva|floatformat:0 }}</p>
+<p><strong>Total:</strong> {{ compra.total|floatformat:0 }}</p>
+
+
+<br>
+
+
+
+
+<p><strong>Observaciones:</strong> {{ compra.observacion }}</p>
+
+<p>Saludos cordiales.</p>

@@ -13,7 +13,6 @@
   {% for field in form %}
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">{{ field.label }}</label>
-     
       <div class="col-sm-6">
         {{ field }}
         {% if field.errors %}
@@ -22,6 +21,22 @@
       </div> <!--Cambia el largo de la cajita del input-->
     </div>
   {% endfor %}
+  
+  <hr class="my-4">
+  <h5 class="mb-3">Proveedor</h5>
+
+{% for field in rel_form %}
+  <div class="row mb-3">
+    <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+    <div class="col-sm-6">
+      {{ field }}
+      {% if field.errors %}
+        <div class="invalid-feedback d-block">{{ field.errors }}</div>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+
 
   <div class="row mt-4">
     <div class="col-sm-9 offset-sm-3">
@@ -29,6 +44,8 @@
       <a class="btn btn-outline-secondary ms-2" href="{% url 'productos_ui' %}">Volver</a>
     </div>
   </div>
+
+
 </form>
 
 {% endblock %}

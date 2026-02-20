@@ -1,0 +1,65 @@
+Metadata-Version: 2.4
+Name: django-select2
+Version: 8.4.8
+Summary: This is a Django_ integration of Select2_.
+Keywords: Django,select2,autocomplete,typeahead
+Author-email: Johannes Maron <johannes@maron.family>
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Intended Audience :: Developers
+Classifier: Environment :: Web Environment
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Classifier: Framework :: Django
+Classifier: Framework :: Django :: 4.2
+Classifier: Framework :: Django :: 5.2
+Classifier: Framework :: Django :: 6.0
+Classifier: Topic :: Software Development
+License-File: LICENSE
+Requires-Dist: django>=4.2
+Requires-Dist: django-appconf>=0.6.0
+Project-URL: Changelog, https://github.com/codingjoe/django-select2/releases
+Project-URL: Documentation, https://django-select2.rtfd.io/
+Project-URL: Funding, https://github.com/sponsors/codingjoe
+Project-URL: Homepage, https://github.com/codingjoe/django-select2
+Project-URL: Issues, https://github.com/codingjoe/django-select2/issues
+Project-URL: Releasenotes, https://github.com/codingjoe/django-select2/releases/latest
+Project-URL: Source, https://github.com/codingjoe/django-select2
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/codingjoe/django-select2/raw/main/images/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://github.com/codingjoe/django-select2/raw/main/images/logo-light.svg">
+    <img alt="Django Select2: Custom autocomplete fields for Django" src="https://github.com/codingjoe/django-select2/raw/main/images/logo-light.svg">
+  </picture>
+<br>
+  <a href="https://django-select2.rtfd.io">Documentation</a> |
+  <a href="https://github.com/codingjoe/django-select2/issues/new/choose">Issues</a> |
+  <a href="https://github.com/codingjoe/django-select2/releases">Changelog</a> |
+  <a href="https://github.com/sponsors/codingjoe">Funding</a> 💚
+</p>
+
+# Django-Select2
+
+[![version](https://img.shields.io/pypi/v/Django-Select2.svg)](https://pypi.python.org/pypi/Django-Select2/)
+[![coverage](https://codecov.io/gh/codingjoe/django-select2/branch/main/graph/badge.svg)](https://codecov.io/gh/codingjoe/django-select2)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/codingjoe/django-select2/main/LICENSE.txt)
+
+Custom autocomplete fields for [Django](https://www.djangoproject.com/).
+
+## Documentation
+
+Documentation available at <https://django-select2.rtfd.io>.
+
+> [!NOTE]
+> Django's admin comes with builtin support for Select2 via the [autocomplete_fields](https://docs.djangoproject.com/en/stable/ref/contrib/admin/#django.contrib.admin.ModelAdmin.autocomplete_fields) feature.
+

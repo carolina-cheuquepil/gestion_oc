@@ -1,6 +1,7 @@
 #FrontEnd: Paso 1
 from django import forms
 from .models import Holding
+from django_select2.forms import ModelSelect2Widget
 
 class HoldingForm(forms.ModelForm):
     empresa_estado = forms.ChoiceField(
@@ -19,3 +20,11 @@ class HoldingForm(forms.ModelForm):
                 field.widget.attrs["class"] = "form-select"
             else:
                 field.widget.attrs["class"] = "form-control"
+
+class HoldingWidget(ModelSelect2Widget):
+    model = Holding
+    search_fields = [
+        "razon_social__icontains",
+        "codigo_empresa__icontains",
+    ]
+

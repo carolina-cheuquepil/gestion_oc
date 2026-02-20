@@ -1,0 +1,179 @@
+{% extends "layouts/base.html" %}
+{% block title %}{% if is_edit %}Editar Factura IC{% else %}Nueva Factura IC{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{% if is_edit %}Editar Factura Intercompany{% else %}Nueva Factura Intercompany{% endif %}</h2>
+  <a class="btn btn-outline-secondary" href="/">Volver</a>
+</div>
+
+<form method="post" class="card p-4"
+      action="{% if is_edit %}{% url 'factura_ic_update' factura.pk %}{% else %}{% url 'factura_ic_create' %}{% endif %}">
+  {% csrf_token %}
+
+  {# CABECERA #}
+  {% for field in form %}
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+      <div class="col-sm-6">
+        {{ field }}
+        {% if field.errors %}
+          <div class="invalid-feedback d-block">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <hr class="my-4">
+
+  {# DETALLE #}
+  <div class="d-flex align-items-center justify-content-between">
+    <h5 class="mb-2">Ítems (líneas desde compra origen)</h5>
+
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="recargar-items">
+      🔄 Recargar ítems
+    </button>
+  </div>
+
+  <div class="text-muted mb-2" style="font-size: 0.9rem;">
+    Selecciona <strong>Compra origen</strong> para listar sus líneas y vender parcial sin exceder el saldo.
+  </div>
+
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}
+    <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+  {% endif %}
+
+  <table class="table table-sm" id="items-table">
+    <thead>
+      <tr>
+        <th>Ítem de compra</th>
+        <th class="text-end">Cantidad</th>
+        <th>IVA</th>
+        <th>Delete</th>
+      </tr>
+    </thead>
+
+    <tbody id="items-tbody">
+      {% for f in formset %}
+        <tr class="item-row">
+          {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+          <td>{{ f.compra_item }}</td>
+          <td class="text-end">{{ f.cantidad }}</td>
+          <td>{{ f.afecta_iva }}</td>
+          <td>{{ f.DELETE }}</td>
+        </tr>
+
+        {% if f.errors %}
+          <tr><td colspan="4" class="text-danger">{{ f.errors }}</td></tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <button type="button" class="btn btn-outline-primary" id="add-row">
+    + Agregar ítem
+  </button>
+
+  <template id="empty-form-template">
+    <tr class="item-row">
+      {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+      <td>{{ formset.empty_form.compra_item }}</td>
+      <td class="text-end">{{ formset.empty_form.cantidad }}</td>
+      <td>{{ formset.empty_form.afecta_iva }}</td>
+      <td>{{ formset.empty_form.DELETE }}</td>
+    </tr>
+  </template>
+
+  <div class="row mt-4">
+    <div class="col-sm-9">
+      <button class="btn btn-primary px-5" type="submit">Guardar</button>
+      <a class="btn btn-outline-secondary ms-2" href="/">Volver</a>
+    </div>
+  </div>
+</form>
+
+<script>
+/**
+ * Endpoint sugerido:
+ * /xd/ajax/compra/<compra_id>/items/
+ * devuelve: [{compra_item_id, label}]
+ * label puede ser: "1 - Router UBN UCG-Ultra (Cant: 4.000)"
+ */
+
+async function cargarItemsCompra(compraId) {
+  const res = await fetch(`/xd/ajax/compra/${compraId}/items/`);
+  return await res.json();
+}
+
+function setOpciones(select, items){
+  select.innerHTML = `<option value="">---------</option>`;
+  for (const it of items){
+    select.innerHTML += `<option value="${it.compra_item_id}">${it.label}</option>`;
+  }
+}
+
+function getCompraOrigenId(){
+  // id típico del campo en Django: id_compra_origen
+  const sel = document.getElementById("id_compra_origen");
+  return sel ? sel.value : "";
+}
+
+document.addEventListener("change", async (e) => {
+  if (e.target.id === "id_compra_origen") {
+    const compraId = e.target.value;
+    const items = compraId ? await cargarItemsCompra(compraId) : [];
+
+    document.querySelectorAll('select[name$="-compra_item"]').forEach(sel => {
+      setOpciones(sel, items);
+    });
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const addBtn = document.getElementById("add-row");
+  const tbody = document.getElementById("items-tbody");
+  const tpl = document.getElementById("empty-form-template");
+
+  const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+
+  addBtn.addEventListener("click", async () => {
+    const index = parseInt(totalForms.value, 10);
+
+    let html = tpl.innerHTML.replaceAll("__prefix__", index);
+    const temp = document.createElement("div");
+    temp.innerHTML = html.trim();
+
+    const row = temp.firstElementChild;
+    tbody.appendChild(row);
+    totalForms.value = index + 1;
+
+    // Si ya hay compra_origen elegida, rellena opciones del select nuevo
+    const compraId = getCompraOrigenId();
+    if (compraId) {
+      const items = await cargarItemsCompra(compraId);
+      const sel = row.querySelector('select[name$="-compra_item"]');
+      if (sel) setOpciones(sel, items);
+    }
+  });
+});
+
+document.getElementById("recargar-items")
+  .addEventListener("click", async function () {
+
+    const compraId = getCompraOrigenId();
+
+    if (!compraId) {
+      alert("Primero selecciona una compra origen.");
+      return;
+    }
+
+    const items = await cargarItemsCompra(compraId);
+
+    document.querySelectorAll('select[name$="-compra_item"]').forEach(sel => {
+      setOpciones(sel, items);
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,7 +1,7 @@
 #PASO 2° BD: Si usarás API con Django Rest Framework
 #Traducción (Python ⇄ JSON)
 from rest_framework import serializers
-from .models import Proveedor, Producto, Compra
+from .models import Proveedor, Producto, Compra, CompraItem
 
 
 class ProveedorSerializer(serializers.ModelSerializer):
@@ -17,4 +17,9 @@ class ProductoSerializer(serializers.ModelSerializer):
 class CompraSerializer(serializers.ModelSerializer):
     class Meta:
         model = Compra
+        fields = "__all__"
+
+class CompraItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompraItem
         fields = "__all__"

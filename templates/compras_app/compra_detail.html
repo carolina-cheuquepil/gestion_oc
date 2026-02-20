@@ -1,10 +1,10 @@
-{% extends "layouts/base.html" %}
+'{% extends "layouts/base.html" %}
 
 {% block title %}Detalle de la compra{% endblock %} 
 
 {% block content %}
 
-
+<!--FrontEnd B: Paso 2 CRUD: Leer-->
 <style>
   .ficha { border-collapse: collapse; width: 100%; max-width: 900px; }
   .ficha td, .ficha th { border: 1px solid #000; padding: 6px; vertical-align: top; }
@@ -55,9 +55,53 @@
   </tr>
 
   <tr>
-    <td class="lbl">DETALLE DE LA COMPRA</td>
-    <td colspan="3" class="box muted">
-      (Aquí luego pones la tabla de ítems / compra_detalle)
+  <td class="lbl">DETALLE DE LA COMPRA</td>
+  <td colspan="3" class="box" style="padding:0;">
+    <table style="width:100%; border-collapse: collapse;">
+      <tr>
+        <td class="lbl" style="width:40px; border:1px solid #000;">#</td>
+        <td class="lbl" style="border:1px solid #000;">Producto / Descripción</td>
+        <td class="lbl right" style="width:90px; border:1px solid #000;">Cant.</td>
+        <td class="lbl right" style="width:110px; border:1px solid #000;">P. Unit</td>
+        <td class="lbl right" style="width:90px; border:1px solid #000;">Desc %</td>
+        <td class="lbl right" style="width:110px; border:1px solid #000;">Neto</td>
+        <td class="lbl right" style="width:110px; border:1px solid #000;">IVA</td>
+        <td class="lbl right" style="width:110px; border:1px solid #000;">Total</td>
+      </tr>
+
+      {% for it in compra.items.all %}
+      <tr>
+        <td style="border:1px solid #000;">{{ it.nro_linea }}</td>
+        <td style="border:1px solid #000;">
+          {% if it.producto %}
+            <strong>{{ it.producto.nombre }}</strong><br>
+            <span class="muted">{{ it.producto.descripcion|default:"" }}</span><br>
+            <span class="muted">Tipo: {{ it.producto.tipo_producto }}</span>
+          {% else %}
+            <strong>{{ it.descripcion_libre }}</strong>
+          {% endif %}
+        </td>
+        <td class="right" style="border:1px solid #000;">{{ it.cantidad }}</td>
+        <td class="right" style="border:1px solid #000;">{{ it.precio_unitario }}</td>
+        <td class="right" style="border:1px solid #000;">{{ it.descuento_porcentaje }}</td>
+        <td class="right" style="border:1px solid #000;">{{ it.subtotal_neto }}</td>
+        <td class="right" style="border:1px solid #000;">{{ it.subtotal_iva }}</td>
+        <td class="right" style="border:1px solid #000;">{{ it.subtotal_total }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="muted" style="border:1px solid #000; padding:10px;">
+          Sin ítems registrados.
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>
+
+  </table>
+</td>
+
     </td>
   </tr>
 
@@ -94,7 +138,7 @@
 
 <br>
 
-<a class="btn btn-sm btn-primary" href="{% url 'compra_update' compra.compra_id %}">Editar</a>
+<a class="btn btn-sm btn-primary" href="{% url 'compra_update' compra.pk %}">Editar</a>
 <a href="{% url 'compras_ui' %}">Volver</a>
 
 <h3>Historial</h3>
@@ -102,6 +146,7 @@
 <table class="ficha" style="max-width: 900px;">
   <tr>
     <td class="lbl">Fecha</td>
+    <td class="lbl">Emisión</td>
     <td class="lbl">Documento</td>
     <td class="lbl">Folio</td>
     <td class="lbl">Estado</td>
@@ -110,16 +155,30 @@
   {% for h in compra.historial.all %}
   <tr>
     <td>{{ h.fecha_evento|date:"d-m-Y H:i" }}</td>
+    <td>{{ h.fecha_documento|date:"d-m-Y" }}</td>
     <td>{{ h.tipo_documento }}</td>
     <td>{{ h.folio|default:"—" }}</td>
     <td>{{ h.estado_documento }}</td>
   </tr>
   {% empty %}
   <tr>
-    <td colspan="4" class="muted">Sin historial aún.</td>
+    <td colspan="5" class="muted">Sin historial aún.</td>
   </tr>
   {% endfor %}
 </table>
 
+<a class="btn btn-outline-primary" href="{% url 'cotizacion_upload' compra.pk %}">
+  Subir cotización (PDF)
+</a>
 
-{% endblock %}
+<form method="post" action="{% url 'enviar_oc' compra.pk %}" style="display:inline;">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary">
+    Solicitar autorización
+  </button>
+</form>
+
+
+
+
+{% endblock %}'

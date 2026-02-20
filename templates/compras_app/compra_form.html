@@ -6,29 +6,147 @@
   <h2>{% if is_edit %}Editar Compra{% else %}Nueva compra{% endif %}</h2>
   <a class="btn btn-outline-secondary" href="{% url 'compras_ui' %}">Volver</a>
 </div>
-<!--FrontEnd: Paso 2-->
-<form method="post" class="card p-4">
+
+<form method="post"
+      enctype="multipart/form-data"
+      class="card p-4"
+      action="{% if is_edit %}{% url 'compra_update' compra.pk %}{% else %}{% url 'compra_create' %}{% endif %}">
+  
   {% csrf_token %}
 
+  <!-- CABECERA -->
   {% for field in form %}
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">{{ field.label }}</label>
-     
       <div class="col-sm-6">
         {{ field }}
         {% if field.errors %}
-          <div class="invalid-feedback d-block">{{ field.errors }}</div>
+          <div class="invalid-feedback d-block">
+            {{ field.errors }}
+          </div>
         {% endif %}
-      </div> <!--Cambia el largo de la cajita del input-->
+      </div>
     </div>
   {% endfor %}
 
-  <div class="row mt-4">
-    <div class="col-sm-9 offset-sm-3">
-      <button class="btn btn-primary px-5" type="submit">Guardar</button>
-      <a class="btn btn-outline-secondary ms-2" href="{% url 'compras_ui' %}">Volver</a>
+  <hr class="my-4">
+
+  <!-- DETALLE / PRODUCTOS -->
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <h5 class="mb-0">Productos / Detalle</h5>
+  </div>
+
+  {{ formset.management_form }}
+
+  {% if formset.non_form_errors %}
+    <div class="alert alert-danger">
+      {{ formset.non_form_errors }}
+    </div>
+  {% endif %}
+
+  <table class="table table-sm" id="items-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="text-end">Cantidad</th>
+        <th class="text-end">P. Unitario</th>
+        <th class="text-end">Descuento</th>
+        <th>IVA</th>
+        <th>Eliminar</th>
+      </tr>
+    </thead>
+    <tbody id="items-tbody">
+      {% for f in formset %}
+        <tr class="item-row">
+          {% for hidden in f.hidden_fields %}
+            {{ hidden }}
+          {% endfor %}
+          <td>{{ f.producto }}</td>
+          <td class="text-end">{{ f.cantidad }}</td>
+          <td class="text-end">{{ f.precio_unitario }}</td>
+          <td class="text-end">{{ f.descuento_porcentaje }}</td>
+          <td>{{ f.afecta_iva }}</td>
+          <td>{{ f.DELETE }}</td>
+        </tr>
+
+        {% if f.errors %}
+        <tr>
+          <td colspan="6" class="text-danger">
+            {{ f.errors }}
+          </td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <button type="button" class="btn btn-outline-primary mb-3" id="add-row">
+    + Agregar producto
+  </button>
+
+  <!-- TEMPLATE VACÍO -->
+  <template id="empty-form-template">
+    <tr class="item-row">
+      {% for hidden in formset.empty_form.hidden_fields %}
+        {{ hidden }}
+      {% endfor %}
+      <td>{{ formset.empty_form.producto }}</td>
+      <td class="text-end">{{ formset.empty_form.cantidad }}</td>
+      <td class="text-end">{{ formset.empty_form.precio_unitario }}</td>
+      <td class="text-end">{{ formset.empty_form.descuento_porcentaje }}</td>
+      <td>{{ formset.empty_form.afecta_iva }}</td>
+      <td>{{ formset.empty_form.DELETE }}</td>
+    </tr>
+  </template>
+
+  <hr class="my-4">
+
+  <!-- ARCHIVO COTIZACIÓN -->
+  <div class="row mb-3">
+    <label class="col-sm-3 col-form-label">Cotización</label>
+    <div class="col-sm-6">
+      {{ form.archivo }}
     </div>
   </div>
+
+  <!-- BOTONES -->
+  <div class="row mt-4">
+    <div class="col-sm-9">
+      <button type="submit" class="btn btn-primary px-5">
+        Guardar
+      </button>
+
+      <a class="btn btn-outline-secondary ms-2"
+         href="{% url 'compras_ui' %}">
+        Volver
+      </a>
+
+      <a class="btn btn-outline-primary"
+         href="{% url 'producto_create' %}"
+         target="_blank">
+        + Nuevo producto
+      </a>
+    </div>
+  </div>
+
 </form>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const addBtn = document.getElementById("add-row");
+  const tbody = document.getElementById("items-tbody");
+  const tpl = document.getElementById("empty-form-template");
+  const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+
+  if (!addBtn || !tbody || !tpl || !totalForms) return;
+
+  addBtn.addEventListener("click", () => {
+    const index = parseInt(totalForms.value, 10);
+    const html = tpl.innerHTML.replaceAll("__prefix__", index);
+    tbody.insertAdjacentHTML("beforeend", html);
+    totalForms.value = index + 1;
+  });
+});
+</script>
 
 {% endblock %}

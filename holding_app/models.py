@@ -14,4 +14,5 @@ class Holding(models.Model):
         db_table = "holding_app_holding"
     
     def __str__(self):
-        return self.razon_social 
+        return self.nombre
+        

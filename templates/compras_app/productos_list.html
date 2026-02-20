@@ -17,17 +17,17 @@
       <th>ID</th>
       <th>Nombre</th>
       <th>Descripción</th>
-      <th>Tipo de producto</th>
+      <th>Proveedor</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
     {% for p in productos %}
     <tr>
-      <td>{{ p.producto_id }}</td>
-      <td>{{ p.nombre }}</td>
-      <td>{{ p.descripcion }}</td>
-      <td>{{ p.tipo_producto }}</td>
-      
+      <td>{{ p.producto.producto_id }}</td>
+      <td>{{ p.producto.nombre }}</td>
+      <td>{{ p.producto.descripcion|truncatechars:50 }}</td>
+      <td>{{ p.proveedor.nombre }}</td>
       <td><a class="btn btn-sm btn-primary" href="{% url 'producto_update' pk=p.pk %}">Editar</a></td>
     </tr>
     {% endfor %}

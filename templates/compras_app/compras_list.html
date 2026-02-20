@@ -7,7 +7,7 @@
 <h2 class="mb-3">Compras</h2>
 <!--FrontEnd: Paso 2 y 5 ahahhaha -->
 
-<a class="btn btn-primary mb-3" href="/">
+<a class="btn btn-primary mb-3" href="{% url 'compra_create' %}">
   + Nueva compra
 </a>
 
@@ -20,6 +20,7 @@
       <th>Proveedor</th>
       <th>Folio</th>
       <th>Emisión</th>
+      <th>Estado</th>
     </tr>
   </thead>
   <tbody>
@@ -31,7 +32,10 @@
       <td>{{ c.proveedor }}</td>
       <td>{{ c.folio }}</td>
       <td>{{ c.fecha_emision }}</td>
-      <td><a class="btn btn-sm btn-primary" href="{% url 'compra_detail' c.compra_id %}">Detalle</a></td>
+      <td>{{ c.estado_documento }}</td>
+      <td><a class="btn btn-sm btn-primary" href="{% url 'compra_detail' c.compra_id %}">Detalle</a>
+        <a class="btn btn-sm btn-primary" href="{% url 'compra_update' c.compra_id %}">Editar</a>
+      </td>
     </tr>
     {% endfor %}
   </tbody>

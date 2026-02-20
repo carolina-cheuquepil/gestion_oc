@@ -1,0 +1,39 @@
+{% extends "layouts/base.html" %}
+{% block title %}Subir Cotización{% endblock %}
+
+{% block content %}
+<h2>Subir Cotización - Compra Nº {{ compra.compra_id }}</h2>
+
+<form method="post" enctype="multipart/form-data" class="card p-4">
+  {% csrf_token %}
+
+  <div class="mb-3">
+    <label class="form-label">Fecha documento</label>
+    {{ form.fecha_documento }}
+    {% if form.fecha_documento.errors %}
+      <div class="text-danger">{{ form.fecha_documento.errors }}</div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Folio cotización</label>
+    {{ form.folio }}
+    {% if form.folio.errors %}
+      <div class="text-danger">{{ form.folio.errors }}</div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Archivo (PDF)</label>
+    {{ form.archivo }}
+    {% if form.archivo.errors %}
+      <div class="text-danger">{{ form.archivo.errors }}</div>
+    {% endif %}
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Guardar</button>
+    <a class="btn btn-outline-secondary" href="{% url 'compra_detail' compra.pk %}">Volver</a>
+  </div>
+</form>
+{% endblock %}
