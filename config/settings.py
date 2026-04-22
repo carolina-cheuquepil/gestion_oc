@@ -42,7 +42,10 @@ INSTALLED_APPS = [
     'rest_framework', #Para SERIALIZERS 
     'personas_app', #2° App
     'compras_app', #3° App: MM: Gestión de materiales (compras e inventario)
+    'proveedores_app', #4° App: Catálogo de proveedores y productos
+    'producto_app',   #5° App: Gestión de marcas y catálogo de productos
     'django_select2',
+    'activos_app'
 ]
 
 MIDDLEWARE = [

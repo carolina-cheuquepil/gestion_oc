@@ -1,0 +1,91 @@
+{% extends "layouts/base.html" %}
+{% block title %}Proyectos TI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Proyectos TI</h1>
+  <a class="btn btn-primary" href="{% url 'proyecto_create' %}">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo proyecto
+  </a>
+</div>
+
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Inicio</th>
+        <th>Fin</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in proyectos %}
+      <tr>
+        <td class="text-muted">{{ p.proyecto_id }}</td>
+        <td>{{ p.proyecto_nombre }}</td>
+        <td>{{ p.fecha_inicio|date:"d-m-Y"|default:"—" }}</td>
+        <td>{{ p.fecha_fin|date:"d-m-Y"|default:"—" }}</td>
+        <td>
+          {% if p.activo %}
+            <span class="badge bg-success">Activo</span>
+          {% else %}
+            <span class="badge bg-secondary">Inactivo</span>
+          {% endif %}
+        </td>
+        <td>
+          <a class="btn btn-sm btn-outline-secondary me-1"
+             href="{% url 'proyecto_update' p.proyecto_id %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+          <button type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalEliminar"
+                  data-id="{{ p.proyecto_id }}"
+                  data-nombre="{{ p.proyecto_nombre }}">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">No hay proyectos registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal confirmar eliminación -->
+<div class="modal fade" id="modalEliminar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Eliminar proyecto</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">¿Eliminar <strong id="modal-nombre"></strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <form id="form-eliminar" method="post" action="">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById("modalEliminar").addEventListener("show.bs.modal", function (e) {
+  const btn = e.relatedTarget;
+  document.getElementById("modal-nombre").textContent = btn.dataset.nombre;
+  document.getElementById("form-eliminar").action = `/proyectos/${btn.dataset.id}/eliminar/`;
+});
+</script>
+{% endblock %}

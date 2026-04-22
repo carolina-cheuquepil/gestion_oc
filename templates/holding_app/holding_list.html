@@ -1,51 +1,79 @@
 {% extends "layouts/base.html" %}
-
-
-{% block title %}Lista empresas{% endblock %} 
+{% block title %}Holding{% endblock %}
 
 {% block content %}
-<h2 class="mb-3">Holding</h2>
+<div class="page-header">
+  <h1 class="page-title">Holding</h1>
+  <a class="btn btn-primary" href="{% url 'holding_create' %}">
+    <i class="bi bi-plus-lg me-1"></i>Nueva Empresa
+  </a>
+</div>
 
-<a class="btn btn-primary mb-3" href="{% url 'holding_create' %}">
-  + Nueva Empresa
-</a>
-
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Código</th>
-      <th>Nombre</th>
-      <th>Razón social</th>
-      <th>RUT</th>
-      <th>Activa</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for h in holdings %}
-    <tr>
-      <td>{{ h.holding_id }}</td>
-      <td>{{ h.codigo_empresa }}</td>
-      <td>{{ h.nombre }}</td>
-      <td>{{ h.razon_social }}</td>
-      <td>{{ h.rut }}</td>
-      <td class="text-center">
-  {% if h.empresa_estado %}
-    <span class="status-dot status-active" title="Activa"></span>
-  {% else %}
-    <span class="status-dot status-inactive" title="No activa"></span>
+<form method="get" class="d-flex gap-2 mb-4" style="max-width: 360px;">
+  <input
+    type="text"
+    name="codigo"
+    value="{{ codigo }}"
+    placeholder="Buscar por código de empresa…"
+    class="form-control"
+    inputmode="numeric"
+  >
+  <button type="submit" class="btn btn-outline-secondary">
+    <i class="bi bi-search"></i>
+  </button>
+  {% if codigo %}
+    <a href="{% url 'holdings_ui' %}" class="btn btn-outline-danger">
+      <i class="bi bi-x-lg"></i>
+    </a>
   {% endif %}
-</td>
+</form>
 
-
-      <td>
-  <a class="btn btn-sm btn-primary"
-     href="{% url 'holding_update' h.pk %}">Editar</a>
-</td>
-
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Código</th>
+        <th>Nombre</th>
+        <th>Razón Social</th>
+        <th>RUT</th>
+        <th class="text-center">Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for h in holdings %}
+      <tr>
+        <td class="text-muted">{{ h.empresa_id }}</td>
+        <td>{{ h.codigo_empresa }}</td>
+        <td>{{ h.nombre }}</td>
+        <td>{{ h.razon_social }}</td>
+        <td>{{ h.rut_numero }}-{{ h.rut_dv }}</td>
+        <td class="text-center">
+          {% if h.empresa_estado %}
+            <span class="status-dot status-active" title="Activa"></span>
+          {% else %}
+            <span class="status-dot status-inactive" title="No activa"></span>
+          {% endif %}
+        </td>
+        <td>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'holding_update' h.pk %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">
+          {% if codigo %}
+            No se encontró ninguna empresa con el código <strong>{{ codigo }}</strong>.
+          {% else %}
+            Sin empresas registradas.
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

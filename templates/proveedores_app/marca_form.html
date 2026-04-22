@@ -1,0 +1,32 @@
+{% extends "layouts/base.html" %}
+{% block title %}{% if is_edit %}Editar Marca{% else %}Nueva Marca{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{% if is_edit %}Editar Marca{% else %}Nueva Marca{% endif %}</h2>
+  <a class="btn btn-outline-secondary" href="{% url 'marcas-lista' %}">Volver</a>
+</div>
+
+<form method="post" class="card p-4">
+  {% csrf_token %}
+
+  {% for field in form %}
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+      <div class="col-sm-6">
+        {{ field }}
+        {% if field.errors %}
+          <div class="invalid-feedback d-block">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="row mt-4">
+    <div class="col-sm-9 offset-sm-3">
+      <button class="btn btn-primary px-5" type="submit">Guardar</button>
+      <a class="btn btn-outline-secondary ms-2" href="{% url 'marcas-lista' %}">Volver</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

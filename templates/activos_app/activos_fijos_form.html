@@ -1,0 +1,164 @@
+{% extends "layouts/base.html" %}
+{% block title %}Registrar Activos Fijos — OC {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .unit-card { border-left: 4px solid #0d6efd; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1 fw-bold text-dark">
+      <i class="bi bi-box-seam me-2 text-primary"></i>Registrar Activos Fijos
+    </h4>
+    <div class="text-muted" style="font-size:.85rem;">
+      OC <strong>{{ compra.folio|default:"SIN FOLIO" }}</strong>
+      — {{ compra.proveedor }} — {{ compra.razon_social }}
+    </div>
+  </div>
+  <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver sin registrar
+  </a>
+</div>
+
+{% if errores %}
+<div class="alert alert-danger mb-3">
+  <strong><i class="bi bi-exclamation-triangle me-1"></i>Errores:</strong>
+  <ul class="mb-0 mt-1">
+    {% for e in errores %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if not units %}
+<div class="alert alert-info">
+  No se encontraron ítems de tipo Activo Fijo en esta recepción.
+  <a href="{% url 'compra_detail' compra.pk %}" class="alert-link">Volver al detalle</a>.
+</div>
+{% else %}
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="recp" value="{{ recp_param }}">
+
+  <div class="alert alert-info py-2 mb-4" style="font-size:.875rem;">
+    <i class="bi bi-info-circle me-1"></i>
+    Se detectaron <strong>{{ units|length }}</strong> unidad(es) de tipo Activo Fijo.
+    Completa los datos de cada una para registrarlas en inventario.
+  </div>
+
+  {% for unit in units %}
+  <div class="card border-0 shadow-sm mb-3 unit-card">
+    <div class="card-body p-4">
+
+      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+          <span class="badge bg-primary me-2">Unidad {{ unit.unit_num }} / {{ unit.total_unidades }}</span>
+          <span class="fw-semibold">{{ unit.nombre_default }}</span>
+          {% if unit.producto.marca %}
+            <span class="text-muted ms-1">— {{ unit.producto.marca }}</span>
+          {% endif %}
+        </div>
+        <div class="text-muted" style="font-size:.82rem;">
+          <i class="bi bi-building me-1"></i>{{ unit.sucursal }}
+        </div>
+      </div>
+
+      <div class="row g-3">
+
+        <div class="col-12 col-md-6">
+          <label class="form-label fw-semibold">
+            Nombre del activo <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            name="{{ unit.prefix }}_nombre"
+            class="form-control"
+            value="{{ unit.val_nombre }}"
+            required
+          >
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label fw-semibold">
+            Código inventario <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            name="{{ unit.prefix }}_codigo"
+            class="form-control"
+            value="{{ unit.val_codigo }}"
+            placeholder="Ej: AF-2024-001"
+            required
+          >
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label fw-semibold">N° serie</label>
+          <input
+            type="text"
+            name="{{ unit.prefix }}_serie"
+            class="form-control"
+            value="{{ unit.val_serie }}"
+            placeholder="Opcional"
+          >
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label fw-semibold">
+            Fecha adquisición <span class="text-danger">*</span>
+          </label>
+          <input
+            type="date"
+            name="{{ unit.prefix }}_fecha"
+            class="form-control"
+            value="{{ unit.val_fecha }}"
+            required
+          >
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label fw-semibold">Valor</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input
+              type="number"
+              name="{{ unit.prefix }}_valor"
+              class="form-control"
+              step="0.01"
+              min="0"
+              value="{{ unit.val_valor }}"
+            >
+          </div>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label fw-semibold">Estado</label>
+          <select name="{{ unit.prefix }}_estado" class="form-select">
+            {% for est in estados %}
+            <option value="{{ est }}" {% if est == unit.val_estado %}selected{% endif %}>{{ est }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="d-flex flex-wrap gap-2 mt-2">
+    <button type="submit" class="btn btn-success px-4">
+      <i class="bi bi-check2-circle me-1"></i>Registrar activos fijos
+    </button>
+    <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
+      Omitir y volver
+    </a>
+  </div>
+
+</form>
+{% endif %}
+
+{% endblock %}

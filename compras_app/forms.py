@@ -1,88 +1,46 @@
 #FrontEnd A: Paso 1
 from django import forms
-from .models import Proveedor, Producto, ProveedorProducto, Compra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, HistorialCompra
+from .models import Compra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, HistorialCompra, TipoOC, ProyectoInformatica
+from proveedores_app.models import Producto
 from django.forms import inlineformset_factory
 from decimal import Decimal
 from django.db.models import Sum
 from holding_app.forms import HoldingWidget
-
-# ----------- Proveedores ------------
-class ProveedorForm(forms.ModelForm):
-    empresa_estado = forms.ChoiceField(
-        choices=[(True, "Activa"), (False, "No activa")],
-        widget=forms.Select(attrs={"class": "form-select"})
-    )
-
-    class Meta:
-        model = Proveedor
-        fields = ["proveedor_id", "razon_social", "nombre", "rut", "empresa_estado"]
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for name, field in self.fields.items():
-            if isinstance(field.widget, forms.Select):
-                field.widget.attrs["class"] = "form-select"
-            else:
-                field.widget.attrs["class"] = "form-control"
-
-class ProductoForm(forms.ModelForm):
-    class Meta:
-        model = Producto
-        fields = ["producto_id", "nombre", "descripcion", "tipo_producto"]
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for name, field in self.fields.items():
-            if isinstance(field.widget, forms.Select):
-                field.widget.attrs["class"] = "form-select"
-            else:
-                field.widget.attrs["class"] = "form-control"
-
-class ProveedorProductoForm(forms.ModelForm):
-    class Meta:
-        model = ProveedorProducto
-        fields = ["proveedor", "uom_compra"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Si el proveedor viene como initial, lo bloqueamos
-        if self.initial.get("proveedor"):
-            self.fields["proveedor"].disabled = True
+from proveedores_app.forms import ProveedorWidget
 
 # ----------- Compras ------------
 class CompraForm(forms.ModelForm):
+    folio_cotizacion = forms.CharField(
+        required=False,
+        label="Folio cotización",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    fecha_cotizacion = forms.DateField(
+        required=False,
+        label="Fecha cotización",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+
     class Meta:
         model = Compra
         fields = [
-            "tipo_documento","estado_documento","razon_social","proveedor",
+            "tipo_oc","estado_documento","razon_social","proveedor",
             "folio","fecha_emision","fecha_requerida","moneda","observacion",
-            "total_neto","total_iva","total",
         ]
         widgets = {
+            "tipo_oc": forms.Select(attrs={"class": "form-select", "id": "id_tipo_oc"}),
+            "razon_social": HoldingWidget(attrs={"class": "form-control", "style": "width: 100%;", "data-placeholder": "Buscar por nombre o código..."}),
+            "proveedor": ProveedorWidget(attrs={"class": "form-control", "style": "width: 100%;", "data-placeholder": "Ingresa el RUT para buscar..."}),
             "fecha_emision": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "fecha_requerida": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "observacion": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "folio": forms.TextInput(attrs={"class": "form-control"}),
-            "total_neto": forms.NumberInput(attrs={"class": "form-control"}),
-            "total_iva": forms.NumberInput(attrs={"class": "form-control"}),
-            "total": forms.NumberInput(attrs={"class": "form-control"}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-
-        if self.errors:
-            return cleaned_data
-
-        total_neto = cleaned_data.get("total_neto") or Decimal("0")
-        total_iva = cleaned_data.get("total_iva") or Decimal("0")
-        total = cleaned_data.get("total") or Decimal("0")
-
-        if total != (total_neto + total_iva):
-            self.add_error("total", "El total debe ser igual a la suma del neto más el IVA.")
-
-        return cleaned_data
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["folio"].label = "Folio OC"
+        self.fields["fecha_emision"].label = "Fecha OC"
 
 
 class CompraItemForm(forms.ModelForm):
@@ -92,6 +50,8 @@ class CompraItemForm(forms.ModelForm):
             "nro_linea",
             "producto",
             "descripcion_libre",
+            "sucursal",
+            "proyecto",
             "cantidad",
             "precio_unitario",
             "descuento_porcentaje",
@@ -100,6 +60,8 @@ class CompraItemForm(forms.ModelForm):
         widgets = {
             "nro_linea": forms.NumberInput(attrs={"class": "form-control"}),
             "descripcion_libre": forms.TextInput(attrs={"class": "form-control"}),
+            "sucursal": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "proyecto": forms.Select(attrs={"class": "form-select form-select-sm"}),
             "cantidad": forms.NumberInput(attrs={"class": "form-control", "step": "0.001"}),
             "precio_unitario": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "descuento_porcentaje": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
@@ -108,21 +70,17 @@ class CompraItemForm(forms.ModelForm):
     def __init__(self, *args, proveedor=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Filtra productos según proveedor (si viene)
         if proveedor:
             self.fields["producto"].queryset = Producto.objects.filter(
                 proveedor_productos__proveedor=proveedor
             ).distinct()
 
     def clean(self):
-        
         cleaned = super().clean()
 
-        # Si la fila está vacía (extra), no validar
         if not self.has_changed():
             return cleaned
 
-        # Si está marcada para borrar, no validar
         if cleaned.get("DELETE"):
             return cleaned
 
@@ -145,6 +103,8 @@ CompraItemFormSet = inlineformset_factory(
     fields=[
         "producto",
         "descripcion_libre",
+        "sucursal",
+        "proyecto",
         "cantidad",
         "precio_unitario",
         "descuento_porcentaje",
@@ -174,14 +134,10 @@ class FacturaIntercompanyForm(forms.ModelForm):
             "empresa_emisora": forms.Select(attrs={"class": "form-control"}),
             "empresa_receptora": forms.Select(attrs={"class": "form-control"}),
             "compra_origen": forms.Select(attrs={"class": "form-control"}),
-
             "folio": forms.TextInput(attrs={"class": "form-control"}),
             "fecha_emision": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-
             "moneda": forms.Select(attrs={"class": "form-control"}),
             "recargo_porcentaje": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
-
-            # Si quieres mostrarlos solo lectura en UI, puedes agregar readonly en template
             "total_neto": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "total_iva": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "total": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
@@ -198,9 +154,6 @@ class FacturaIntercompanyForm(forms.ModelForm):
         recargo = cleaned.get("recargo_porcentaje")
         if recargo is not None and recargo < 0:
             self.add_error("recargo_porcentaje", "El recargo no puede ser negativo.")
-
-        # Opcional: forzar 5% fijo
-        # cleaned["recargo_porcentaje"] = Decimal("5.00")
 
         return cleaned
 
@@ -219,10 +172,6 @@ class FacturaIntercompanyItemForm(forms.ModelForm):
         }
 
     def __init__(self, *args, compra_origen=None, **kwargs):
-        """
-        compra_origen: id de Compra (int) o instancia Compra.
-        Filtra compra_item para que el usuario solo pueda escoger ítems de esa compra.
-        """
         super().__init__(*args, **kwargs)
 
         if compra_origen:
@@ -234,7 +183,6 @@ class FacturaIntercompanyItemForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
 
-        # Filas vacías del formset
         if not self.has_changed():
             return cleaned
 
@@ -252,7 +200,6 @@ class FacturaIntercompanyItemForm(forms.ModelForm):
             self.add_error("cantidad", "La cantidad debe ser mayor a 0.")
             return cleaned
 
-        # Validar saldo disponible (para evitar sobreventa)
         vendido = (
             FacturaIntercompanyItem.objects
             .filter(compra_item=compra_item)
@@ -281,6 +228,18 @@ FacturaIntercompanyItemFormSet = inlineformset_factory(
 )
 
 
+class ProyectoForm(forms.ModelForm):
+    class Meta:
+        model = ProyectoInformatica
+        fields = ["proyecto_nombre", "fecha_inicio", "fecha_fin", "activo"]
+        widgets = {
+            "proyecto_nombre": forms.TextInput(attrs={"class": "form-control"}),
+            "fecha_inicio": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "fecha_fin": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
 class CotizacionUploadForm(forms.ModelForm):
     fecha_documento = forms.DateField(
         required=False,
@@ -292,6 +251,25 @@ class CotizacionUploadForm(forms.ModelForm):
         fields = ["fecha_documento", "folio", "archivo"]
 
 
-
-
-
+class FacturaProveedorForm(forms.Form):
+    folio_factura = forms.CharField(
+        max_length=30,
+        required=False,
+        label="Folio factura",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    fecha_factura = forms.DateField(
+        required=False,
+        label="Fecha factura",
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    archivo_factura = forms.FileField(
+        required=False,
+        label="Archivo factura",
+        widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
+    )
+    observacion_factura = forms.CharField(
+        required=False,
+        label="Observación",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )

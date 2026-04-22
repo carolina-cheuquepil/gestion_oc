@@ -1,0 +1,202 @@
+{% extends "layouts/base.html" %}
+{% block title %}Factura / Recepción — OC {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1 fw-bold text-dark">
+      Ingresar Factura / Recepción
+    </h4>
+    <div class="text-muted" style="font-size:.85rem;">
+      OC <strong>{{ compra.folio|default:"SIN FOLIO" }}</strong> — {{ compra.proveedor }} — {{ compra.razon_social }}
+    </div>
+  </div>
+  <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+
+  <!-- ── Sección 1: Factura del proveedor ── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="section-title mb-3">Factura del proveedor</div>
+
+      {% if facturas_registradas %}
+      <div class="alert alert-info py-2 mb-3" style="font-size:.875rem;">
+        <i class="bi bi-info-circle me-1"></i>
+        Ya se registraron {{ facturas_registradas|length }} factura(s) para esta OC.
+        Puedes ingresar otra si corresponde.
+      </div>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Folio</th>
+              <th>Fecha</th>
+              <th>Archivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in facturas_registradas %}
+            <tr>
+              <td>{{ f.folio|default:"—" }}</td>
+              <td>{{ f.fecha_documento|date:"d-m-Y"|default:"—" }}</td>
+              <td>
+                {% if f.archivo %}
+                  <a href="{{ f.archivo.url }}" target="_blank" class="text-primary">Ver archivo</a>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-semibold">{{ factura_form.folio_factura.label }}</label>
+          {{ factura_form.folio_factura }}
+          {% if factura_form.folio_factura.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.folio_factura.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-semibold">{{ factura_form.fecha_factura.label }}</label>
+          {{ factura_form.fecha_factura }}
+          {% if factura_form.fecha_factura.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.fecha_factura.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-semibold">{{ factura_form.archivo_factura.label }}</label>
+          {{ factura_form.archivo_factura }}
+          {% if factura_form.archivo_factura.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.archivo_factura.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">{{ factura_form.observacion_factura.label }}</label>
+          {{ factura_form.observacion_factura }}
+        </div>
+      </div>
+
+      <p class="text-muted mt-2 mb-0" style="font-size:.8rem;">
+        <i class="bi bi-info-circle me-1"></i>
+        Si la factura aún no ha llegado, deja estos campos vacíos y solo confirma la recepción de ítems.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Sección 2: Confirmación de recepción de ítems ── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="section-title mb-3">Confirmación de recepción de ítems</div>
+
+      <p class="text-muted mb-3" style="font-size:.875rem;">
+        <i class="bi bi-info-circle me-1"></i>
+        Ingresa la cantidad recibida en esta entrega. Si aún no llegan los productos, deja en 0.
+      </p>
+
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:40px">#</th>
+              <th>Producto / Descripción</th>
+              <th class="text-end">Cant. OC</th>
+              <th class="text-end">Ya recibido</th>
+              <th class="text-end">Pendiente</th>
+              <th style="width:140px" class="text-center">Cant. recibida ahora</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for info in items_info %}
+            {% with item=info.item %}
+            <tr>
+              <td class="text-muted align-middle">{{ item.nro_linea }}</td>
+              <td class="align-middle">
+                {% if item.producto %}
+                  <span class="fw-semibold">{{ item.producto.producto_nombre }}</span>
+                {% else %}
+                  {{ item.descripcion_libre|default:"—" }}
+                {% endif %}
+                {% if info.recepciones %}
+                <div class="mt-1">
+                  {% for r in info.recepciones %}
+                  <span class="badge bg-light text-dark border" style="font-size:.75rem;">
+                    {{ r.fecha_recepcion|date:"d-m-Y" }}: {{ r.cantidad_recibida }}
+                    {% if r.observacion %} — {{ r.observacion }}{% endif %}
+                  </span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </td>
+              <td class="text-end align-middle">{{ item.cantidad }}</td>
+              <td class="text-end align-middle">
+                {% if info.total_recibido %}
+                  <span class="text-success fw-semibold">{{ info.total_recibido }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+              <td class="text-end align-middle">
+                {% if info.pendiente > 0 %}
+                  <span class="text-warning fw-semibold">{{ info.pendiente }}</span>
+                {% else %}
+                  <span class="badge bg-success">Completo</span>
+                {% endif %}
+              </td>
+              <td class="text-center align-middle">
+                <input
+                  type="number"
+                  name="recepcion_cantidad_{{ item.compra_item_id }}"
+                  min="0"
+                  step="0.001"
+                  max="{{ info.pendiente }}"
+                  value="0"
+                  class="form-control form-control-sm text-end"
+                  {% if info.pendiente <= 0 %}disabled{% endif %}
+                >
+              </td>
+              <td class="align-middle">
+                <input
+                  type="text"
+                  name="recepcion_obs_{{ item.compra_item_id }}"
+                  class="form-control form-control-sm"
+                  placeholder="Opcional"
+                  {% if info.pendiente <= 0 %}disabled{% endif %}
+                >
+              </td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">Sin ítems en esta OC.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Acciones -->
+  <div class="d-flex flex-wrap gap-2">
+    <button type="submit" class="btn btn-success px-4">
+      <i class="bi bi-check2-circle me-1"></i>Guardar
+    </button>
+    <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
+      Cancelar
+    </a>
+  </div>
+
+</form>
+{% endblock %}

@@ -2,68 +2,56 @@
 {% block title %}Facturas Intercompany{% endblock %}
 
 {% block content %}
-
-<h2 class="mb-4">Facturas Intercompany</h2>
-
-<div class="mb-3">
+<div class="page-header">
+  <h1 class="page-title">Distribución Interna</h1>
   <a class="btn btn-primary" href="{% url 'factura_ic_create' %}">
-    + Nueva Factura IC
+    <i class="bi bi-plus-lg me-1"></i>Nueva Factura IC
   </a>
 </div>
 
-<table class="table table-bordered table-sm">
-  <thead class="table-light">
-    <tr>
-      <th>N°</th>
-      <th>Folio</th>
-      <th>Fecha</th>
-      <th>Empresa Emisora</th>
-      <th>Empresa Receptora</th>
-      <th>Compra Origen</th>
-      <th class="text-end">Total</th>
-      <th style="width:120px;">Acciones</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for f in facturas %}
-    <tr>
-      <td>{{ f.factura_intercompany_id }}</td>
-      <td>{{ f.folio|default:"—" }}</td>
-      <td>{{ f.fecha_emision|date:"d-m-Y" }}</td>
-      <td>{{ f.empresa_emisora }}</td>
-      <td>{{ f.empresa_receptora }}</td>
-
-      <td>
-        {% if f.compra_origen %}
-          Compra #{{ f.compra_origen.compra_id }}
-        {% else %}
-          —
-        {% endif %}
-      </td>
-
-      <td class="text-end">
-        {{ f.total }}
-      </td>
-
-      <td>
-        <a class="btn btn-sm btn-outline-primary"
-           href="{% url 'factura_ic_detail' f.pk %}">
-          Ver
-        </a>
-        <a class="btn btn-sm btn-outline-secondary"
-           href="{% url 'factura_ic_update' f.pk %}">
-          Editar
-        </a>
-      </td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="8" class="text-center text-muted">
-        No hay facturas registradas.
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>Folio</th>
+        <th>Fecha</th>
+        <th>Empresa Emisora</th>
+        <th>Empresa Receptora</th>
+        <th>Compra Origen</th>
+        <th class="text-end">Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in facturas %}
+      <tr>
+        <td class="text-muted">{{ f.factura_intercompany_id }}</td>
+        <td>{{ f.folio|default:"—" }}</td>
+        <td>{{ f.fecha_emision|date:"d-m-Y" }}</td>
+        <td>{{ f.empresa_emisora }}</td>
+        <td>{{ f.empresa_receptora }}</td>
+        <td>
+          {% if f.compra_origen %}
+            Compra #{{ f.compra_origen.compra_id }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="text-end fw-semibold">{{ f.total }}</td>
+        <td>
+          <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'factura_ic_detail' f.pk %}">
+            <i class="bi bi-eye me-1"></i>Ver
+          </a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'factura_ic_update' f.pk %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-4">No hay facturas registradas.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

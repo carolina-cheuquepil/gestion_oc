@@ -1,0 +1,109 @@
+{% extends "layouts/base.html" %}
+{% block title %}Nuevo Producto{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{% if is_edit %}Editar Producto{% else %}Nuevo Producto{% endif %}</h2>
+  <a class="btn btn-outline-secondary" href="{% url 'productos-lista' %}">Volver</a>
+</div>
+<form method="post" class="card p-4">
+  {% csrf_token %}
+
+  {% for field in form %}
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+      <div class="col-sm-6">
+        {{ field }}
+        {% if field.errors %}
+          <div class="invalid-feedback d-block">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <hr class="my-4">
+  <h5 class="mb-3">Proveedor</h5>
+
+  {% if not proveedor_fijado %}
+  <div class="row mb-3">
+    <label class="col-sm-3 col-form-label">Buscar proveedor por RUT</label>
+    <div class="col-sm-6">
+      <div class="input-group">
+        <input type="text" id="rut_buscar" class="form-control" placeholder="Ej: 76123456" inputmode="numeric">
+        <button type="button" class="btn btn-outline-secondary" id="btn_buscar_rut">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.099zm-5.242 1.156a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="row mb-3">
+    <label class="col-sm-3 col-form-label">Proveedor</label>
+    <div class="col-sm-6">
+      <p id="proveedor_nombre" class="form-control-plaintext fw-semibold">
+        {% if is_edit and rel_form.instance.proveedor %}{{ rel_form.instance.proveedor.razon_social }}{% endif %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+{% for field in rel_form %}
+  {% if field.html_name == 'proveedor' %}
+    <input type="hidden" name="proveedor" id="id_proveedor"
+      value="{% if proveedor_fijado and proveedor %}{{ proveedor.pk }}{% elif is_edit and rel_form.instance.proveedor %}{{ rel_form.instance.proveedor.pk }}{% endif %}">
+  {% else %}
+  <div class="row mb-3">
+    <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+    <div class="col-sm-6">
+      {{ field }}
+      {% if field.errors %}
+        <div class="invalid-feedback d-block">{{ field.errors }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+
+  <div class="row mt-4">
+    <div class="col-sm-9 offset-sm-3">
+      <button class="btn btn-primary px-5" type="submit">Guardar</button>
+      <a class="btn btn-outline-secondary ms-2" href="{% url 'productos-lista' %}">Volver</a>
+    </div>
+  </div>
+
+</form>
+
+{% if not proveedor_fijado %}
+<script>
+(function () {
+  const input = document.getElementById('rut_buscar');
+  const btn = document.getElementById('btn_buscar_rut');
+  const nombreDiv = document.getElementById('proveedor_nombre');
+  const hiddenInput = document.getElementById('id_proveedor');
+
+  function buscar() {
+    const rut = input.value.replace(/\D/g, '');
+    if (!rut) { nombreDiv.textContent = 'Ingresa un RUT válido.'; return; }
+    nombreDiv.textContent = 'Buscando…';
+    fetch(`{% url 'proveedor-buscar' %}?rut=${rut}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          nombreDiv.textContent = 'Proveedor no encontrado.';
+          hiddenInput.value = '';
+          return;
+        }
+        nombreDiv.textContent = `${data.razon_social} (${data.rut_numero}-${data.rut_dv})`;
+        hiddenInput.value = data.id;
+      })
+      .catch(() => { nombreDiv.textContent = 'Error al buscar.'; });
+  }
+
+  btn.addEventListener('click', buscar);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscar(); } });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

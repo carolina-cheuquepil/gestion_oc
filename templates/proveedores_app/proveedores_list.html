@@ -1,0 +1,67 @@
+{% extends "layouts/base.html" %}
+{% block title %}Proveedores{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Proveedores</h1>
+  <br>
+  <div class="d-flex align-items-center gap-2">
+    <form method="get" class="d-flex gap-2" style="max-width:420px">
+      <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por RUT, razón social o nombre…">
+      <button type="submit" class="btn btn-outline-secondary">
+        <i class="bi bi-search"></i>
+      </button>
+      {% if q %}
+      <a href="?" class="btn btn-outline-danger" title="Limpiar búsqueda"><i class="bi bi-x-lg"></i></a>
+      {% endif %}
+    </form>
+    <a class="btn btn-primary" href="{% url 'proveedor-nuevo' %}">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Proveedor
+    </a>
+  </div>
+</div>
+<br>
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Razón Social</th>
+        <th>RUT</th>
+        <th class="text-center">Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in proveedores %}
+      <tr>
+        <td class="text-muted">{{ p.proveedor_id }}</td>
+        <td>{{ p.nombre }}</td>
+        <td>{{ p.razon_social }}</td>
+        <td>{{ p.rut_completo }}</td>
+        <td class="text-center">
+          {% if p.empresa_estado %}
+            <span class="status-dot status-active" title="Activa"></span>
+          {% else %}
+            <span class="status-dot status-inactive" title="No activa"></span>
+          {% endif %}
+        </td>
+        <td>
+          <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'proveedor-productos' pk=p.pk %}">
+            <i class="bi bi-box-seam me-1"></i>Productos
+          </a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'proveedor-editar' pk=p.pk %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-center text-muted py-4">Sin proveedores registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

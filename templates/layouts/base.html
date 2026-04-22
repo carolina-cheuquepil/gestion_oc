@@ -1,48 +1,65 @@
-{% load static %} 
-<!DOCTYPE html> 
-<html lang="es"> 
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
 
-<head> 
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portal de Soporte Dimarsa">
-  <title>{% block title %}Soporte Dimarsa{% endblock %}</title> 
-  
+  <title>{% block title %}Soporte Dimarsa{% endblock %}</title>
+
   <link rel="icon" href="{% static 'img/favicon.ico' %}?v=4">
 
   <!-- Bootstrap -->
-  <link 
-  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
-  rel="stylesheet" 
-  > 
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Paso 3 de estilo-->
-  
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
-  {% block extra_css %}{% endblock %} 
-</head> 
+  {% block extra_css %}{% endblock %}
+</head>
 
 <body>
-  <header class="header">
-  <div class="container d-flex align-items-center justify-content-between py-2">
-    <a href="/" class="d-inline-flex align-items-center text-decoration-none">
+
+<header class="header">
+  <div class="header-inner">
+    <a href="/" class="text-decoration-none">
       <img src="{% static 'img/logo-dimarsa.svg' %}" class="logo" alt="Dimarsa">
     </a>
     <span class="header-title">Soporte Dimarsa</span>
   </div>
   <div class="header-accent"></div>
 </header>
-<!--FrontEnd: Paso 5 y fin -->
+
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-section">
-      <div class="sidebar-title">Maestros</div>
-      <a class="sidebar-link" href="{% url 'compras_ui' %}">Compras IT</a>
-      <a class="sidebar-link" href="{% url 'facturas_ic_ui' %}">Distribución interna</a>
-      <a class="sidebar-link" href="{% url 'personas_ui' %}">Persona</a>
-      <a class="sidebar-link" href="{% url 'productos_ui' %}">Productos</a>
-      <a class="sidebar-link" href="{% url 'proveedores_ui' %}">Proveedores</a>
-      <a class="sidebar-link" href="{% url 'holdings_ui' %}">Holding</a>
+      <div class="sidebar-title">Módulos</div>
+      <a class="sidebar-link" href="{% url 'compras_ui' %}">
+        <i class="bi bi-bag-check"></i> Compras IT
+      </a>
+      <a class="sidebar-link" href="{% url 'proyectos_list' %}">
+        <i class="bi bi-kanban"></i> Proyectos TI
+      </a>
+      <a class="sidebar-link" href="{% url 'facturas_ic_ui' %}">
+        <i class="bi bi-receipt"></i> Distribución interna
+      </a>
+      <a class="sidebar-link" href="{% url 'personas_ui' %}">
+        <i class="bi bi-person"></i> Personas
+      </a>
+      <a class="sidebar-link" href="{% url 'productos-lista' %}">
+        <i class="bi bi-box-seam"></i> Productos
+      </a>
+      <a class="sidebar-link" href="{% url 'activos_list' %}">
+        <i class="bi bi-box-seam"></i> Activos Fijos
+      </a>
+      <a class="sidebar-link" href="{% url 'proveedores-lista' %}">
+        <i class="bi bi-truck"></i> Proveedores
+      </a>
+      <a class="sidebar-link" href="{% url 'holdings_ui' %}">
+        <i class="bi bi-building"></i> Holding
+      </a>
     </div>
   </aside>
 
@@ -51,7 +68,11 @@
   </main>
 </div>
 
-  {% block extra_js %}{% endblock %}
+<!-- jQuery (requerido por Select2) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
 
-</body> 
+</body>
 </html>

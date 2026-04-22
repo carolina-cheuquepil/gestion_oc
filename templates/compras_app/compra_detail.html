@@ -1,184 +1,225 @@
-'{% extends "layouts/base.html" %}
+{# templates/compras_app/compra_detail.html #}
+{% extends "layouts/base.html" %}
+{% block title %}Detalle Compra — {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
 
-{% block title %}Detalle de la compra{% endblock %} 
+{% block extra_css %}
+<style>
+  .totals-row td { padding: .45rem .75rem; }
+  .totals-row td:first-child { color: var(--c-text-muted); font-size: .85rem; font-weight: 600; text-transform: uppercase; }
+  .totals-row td:last-child { text-align: right; font-size: .95rem; font-weight: 500; }
+  .totals-row.grand-total td { border-top: 2px solid var(--c-border); font-weight: 700; font-size: 1rem; color: var(--c-text); }
+</style>
+{% endblock %}
 
 {% block content %}
 
-<!--FrontEnd B: Paso 2 CRUD: Leer-->
-<style>
-  .ficha { border-collapse: collapse; width: 100%; max-width: 900px; }
-  .ficha td, .ficha th { border: 1px solid #000; padding: 6px; vertical-align: top; }
-  .lbl { font-weight: 700; width: 170px; background: #f5f5f5; }
-  .box { height: 140px; }
-  .right { text-align: right; }
-  .muted { color: #444; }
-</style>
+<!-- Encabezado del documento -->
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1 fw-bold text-dark">
+      {{ compra.tipo_documento }}
+      <span class="text-secondary fw-normal">Nº {{ compra.folio|default:"SIN FOLIO" }}</span>
+    </h4>
+    <div class="text-muted" style="font-size:.85rem;">
+      {{ compra.razon_social }}
+    </div>
+  </div>
 
-<h1>Compra Nº {{ compra.compra_id }}</h1>
+  <div class="d-flex align-items-center gap-2">
+    {% with estado=compra.estado_documento %}
+      {% if estado == "ACEPTADO" or estado == "AUTORIZADO" %}
+        <span class="badge bg-success fs-6 px-3 py-2">{{ estado }}</span>
+      {% elif estado == "PENDIENTE" or estado == "EN REVISION" %}
+        <span class="badge bg-warning text-dark fs-6 px-3 py-2">{{ estado }}</span>
+      {% elif estado == "RECHAZADO" or estado == "ANULADO" %}
+        <span class="badge bg-danger fs-6 px-3 py-2">{{ estado }}</span>
+      {% else %}
+        <span class="badge bg-secondary fs-6 px-3 py-2">{{ estado }}</span>
+      {% endif %}
+    {% endwith %}
+  </div>
+</div>
 
-<table class="ficha">
-  <tr>
-    <td class="lbl">COMPRA N°</td>
-    <td>{{ compra.compra_id }}</td>
+<div class="row g-3 mb-3">
 
-    <td class="lbl">ESTADO</td>
-    <td>{{ compra.estado_documento }}</td>
-  </tr>
+  <!-- Información principal -->
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <div class="section-title">Información del documento</div>
+        <div class="row g-3">
 
-  <tr>
-    <td class="lbl">DOCUMENTO</td>
-    <td>{{ compra.tipo_documento }}</td>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Proveedor</div>
+            <div class="detail-value">{{ compra.proveedor }}</div>
+          </div>
 
-    <td class="lbl">FECHA DE EMISIÓN</td>
-    <td>{{ compra.fecha_emision|date:"d-m-Y" }}</td>
-  </tr>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Tipo de documento</div>
+            <div class="detail-value">{{ compra.tipo_documento }}</div>
+          </div>
 
-  <tr>
-    <td class="lbl">FOLIO</td>
-    <td>{{ compra.folio|default:"—" }}</td>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Moneda</div>
+            <div class="detail-value">{{ compra.moneda }}</div>
+          </div>
 
-    <td class="lbl">FECHA REQUERIDA</td>
-    <td>{{ compra.fecha_requerida|date:"d-m-Y"|default:"—" }}</td>
-  </tr>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Fecha emisión</div>
+            <div class="detail-value">{{ compra.fecha_emision|date:"d-m-Y" }}</div>
+          </div>
 
-  <tr>
-    <td class="lbl">PROVEEDOR</td>
-    <td colspan="1">{{ compra.proveedor }}</td>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Fecha requerida</div>
+            <div class="detail-value">{{ compra.fecha_requerida|date:"d-m-Y"|default:"—" }}</div>
+          </div>
 
-    <td class="lbl">MONEDA</td>
-    <td>{{ compra.moneda }}</td>
-  </tr>
-
-  <tr>
-    <td class="lbl">RAZÓN SOCIAL</td>
-    <td colspan="3">{{ compra.razon_social }}</td>
-  </tr>
-
-  <tr>
-  <td class="lbl">DETALLE DE LA COMPRA</td>
-  <td colspan="3" class="box" style="padding:0;">
-    <table style="width:100%; border-collapse: collapse;">
-      <tr>
-        <td class="lbl" style="width:40px; border:1px solid #000;">#</td>
-        <td class="lbl" style="border:1px solid #000;">Producto / Descripción</td>
-        <td class="lbl right" style="width:90px; border:1px solid #000;">Cant.</td>
-        <td class="lbl right" style="width:110px; border:1px solid #000;">P. Unit</td>
-        <td class="lbl right" style="width:90px; border:1px solid #000;">Desc %</td>
-        <td class="lbl right" style="width:110px; border:1px solid #000;">Neto</td>
-        <td class="lbl right" style="width:110px; border:1px solid #000;">IVA</td>
-        <td class="lbl right" style="width:110px; border:1px solid #000;">Total</td>
-      </tr>
-
-      {% for it in compra.items.all %}
-      <tr>
-        <td style="border:1px solid #000;">{{ it.nro_linea }}</td>
-        <td style="border:1px solid #000;">
-          {% if it.producto %}
-            <strong>{{ it.producto.nombre }}</strong><br>
-            <span class="muted">{{ it.producto.descripcion|default:"" }}</span><br>
-            <span class="muted">Tipo: {{ it.producto.tipo_producto }}</span>
-          {% else %}
-            <strong>{{ it.descripcion_libre }}</strong>
+          {% if compra.observacion %}
+          <div class="col-12">
+            <div class="detail-label">Observación</div>
+            <div class="detail-value text-secondary">{{ compra.observacion }}</div>
+          </div>
           {% endif %}
-        </td>
-        <td class="right" style="border:1px solid #000;">{{ it.cantidad }}</td>
-        <td class="right" style="border:1px solid #000;">{{ it.precio_unitario }}</td>
-        <td class="right" style="border:1px solid #000;">{{ it.descuento_porcentaje }}</td>
-        <td class="right" style="border:1px solid #000;">{{ it.subtotal_neto }}</td>
-        <td class="right" style="border:1px solid #000;">{{ it.subtotal_iva }}</td>
-        <td class="right" style="border:1px solid #000;">{{ it.subtotal_total }}</td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="8" class="muted" style="border:1px solid #000; padding:10px;">
-          Sin ítems registrados.
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
-  </td>
-</tr>
 
-  </table>
-</td>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    </td>
-  </tr>
+  <!-- Totales -->
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <div class="section-title">Totales</div>
+        <table class="table table-borderless mb-0">
+          <tbody>
+            <tr class="totals-row">
+              <td>Neto</td>
+              <td>{{ compra.moneda.codigo }} {{ compra.total_neto }}</td>
+            </tr>
+            {% if compra.total_iva %}
+            <tr class="totals-row">
+              <td>IVA</td>
+              <td>{{ compra.moneda.codigo }} {{ compra.total_iva }}</td>
+            </tr>
+            {% endif %}
+            <tr class="totals-row grand-total">
+              <td>Total</td>
+              <td>{{ compra.moneda.codigo }} {{ compra.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-  <tr>
-    <td class="lbl">OBSERVACIÓN</td>
-    <td colspan="2">{{ compra.observacion|default:"—" }}</td>
+</div>
 
-    <td>
-      <table style="width:100%; border-collapse: collapse;">
-        <tr>
-          <td class="lbl right" style="border:1px solid #000;">NETO</td>
-          <td class="right" style="border:1px solid #000;">{{ compra.total_neto }}</td>
-        </tr>
-        <tr>
-          <td class="lbl right" style="border:1px solid #000;">IVA</td>
-          <td class="right" style="border:1px solid #000;">{{ compra.total_iva }}</td>
-        </tr>
-        <tr>
-          <td class="lbl right" style="border:1px solid #000;">TOTAL</td>
-          <td class="right" style="border:1px solid #000;">{{ compra.total }}</td>
-        </tr>
+<!-- Ítems -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-4">
+    <div class="section-title">Ítems</div>
+    <div class="table-responsive">
+      <table class="table table-hover items-table mb-0">
+        <thead>
+          <tr>
+            <th style="width:48px">#</th>
+            <th>Producto / Descripción</th>
+            <th class="text-end">Cant.</th>
+            <th class="text-end">P. Unitario</th>
+            <th class="text-end">Desc. %</th>
+            <th class="text-end">Neto</th>
+            <th class="text-end">IVA</th>
+            <th class="text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in compra.items.all %}
+          <tr>
+            <td class="text-muted">{{ item.nro_linea }}</td>
+            <td>
+              {% if item.producto %}
+                <span class="fw-semibold">{{ item.producto.producto_nombre }}</span>
+              {% else %}
+                {{ item.descripcion_libre|default:"—" }}
+              {% endif %}
+            </td>
+            <td class="text-end">{{ item.cantidad }}</td>
+            <td class="text-end">{{ compra.moneda.codigo }} {{ item.precio_unitario }}</td>
+            <td class="text-end">{{ item.descuento_porcentaje }}%</td>
+            <td class="text-end">{{ compra.moneda.codigo }} {{ item.subtotal_neto }}</td>
+            <td class="text-end">{{ compra.moneda.codigo }} {{ item.subtotal_iva }}</td>
+            <td class="text-end fw-semibold">{{ compra.moneda.codigo }} {{ item.subtotal_total }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              Sin ítems registrados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
       </table>
-    </td>
-  </tr>
+    </div>
+  </div>
+</div>
 
-  <tr>
-    <td class="lbl">CREADO EN</td>
-    <td>{{ compra.creado_en|date:"d-m-Y H:i" }}</td>
+<!-- Historial -->
+{% if compra.historial.all %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="section-title">Historial</div>
+    <div class="table-responsive">
+      <table class="table table-hover history-table mb-0">
+        <thead>
+          <tr>
+            <th>Fecha evento</th>
+            <th>Tipo doc.</th>
+            <th>Estado</th>
+            <th>Folio</th>
+            <th>Fecha doc.</th>
+            <th>Archivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in compra.historial.all %}
+          <tr>
+            <td>{{ h.fecha_evento|date:"d-m-Y H:i" }}</td>
+            <td>{{ h.tipo_documento }}</td>
+            <td>{{ h.estado_documento }}</td>
+            <td>{{ h.folio|default:"—" }}</td>
+            <td>{{ h.fecha_documento|date:"d-m-Y"|default:"—" }}</td>
+            <td>
+              {% if h.archivo %}
+                <a href="{{ h.archivo.url }}" target="_blank" class="text-primary text-decoration-none">
+                  Ver archivo
+                </a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
 
-    <td class="lbl">ACTUALIZADO EN</td>
-    <td>{{ compra.actualizado_en|date:"d-m-Y H:i" }}</td>
-  </tr>
-</table>
+<!-- Acciones -->
+<div class="d-flex flex-wrap gap-2">
+  <a class="btn btn-primary btn-sm px-3" href="{% url 'compra_update' compra.pk %}">
+    <i class="bi bi-pencil me-1"></i>Editar
+  </a>
+  {% if compra.estado_documento.nombre == "Aprobado" %}
+  <a class="btn btn-success btn-sm px-3" href="{% url 'registrar_factura_recepcion' compra.pk %}">
+    <i class="bi bi-file-earmark-text me-1"></i>Ingresar Factura / Recepción
+  </a>
+  {% endif %}
+  <a class="btn btn-link btn-sm text-secondary" href="{% url 'compras_ui' %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
 
-<br>
-
-<a class="btn btn-sm btn-primary" href="{% url 'compra_update' compra.pk %}">Editar</a>
-<a href="{% url 'compras_ui' %}">Volver</a>
-
-<h3>Historial</h3>
-
-<table class="ficha" style="max-width: 900px;">
-  <tr>
-    <td class="lbl">Fecha</td>
-    <td class="lbl">Emisión</td>
-    <td class="lbl">Documento</td>
-    <td class="lbl">Folio</td>
-    <td class="lbl">Estado</td>
-  </tr>
-
-  {% for h in compra.historial.all %}
-  <tr>
-    <td>{{ h.fecha_evento|date:"d-m-Y H:i" }}</td>
-    <td>{{ h.fecha_documento|date:"d-m-Y" }}</td>
-    <td>{{ h.tipo_documento }}</td>
-    <td>{{ h.folio|default:"—" }}</td>
-    <td>{{ h.estado_documento }}</td>
-  </tr>
-  {% empty %}
-  <tr>
-    <td colspan="5" class="muted">Sin historial aún.</td>
-  </tr>
-  {% endfor %}
-</table>
-
-<a class="btn btn-outline-primary" href="{% url 'cotizacion_upload' compra.pk %}">
-  Subir cotización (PDF)
-</a>
-
-<form method="post" action="{% url 'enviar_oc' compra.pk %}" style="display:inline;">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-primary">
-    Solicitar autorización
-  </button>
-</form>
-
-
-
-
-{% endblock %}'
+{% endblock %}

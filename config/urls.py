@@ -24,8 +24,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include("holding_app.urls")),
     path('probando/', include("personas_app.urls")),
-    path('xd/', include("compras_app.urls")),
-    path("select2/", include("django_select2.urls")), 
+    path('compras/', include("compras_app.urls")),
+    path('proveedores/', include("proveedores_app.urls")),
+    path('productos/', include("producto_app.urls")),
+    path("select2/", include("django_select2.urls")),
+    path("", include("activos_app.urls")),
 
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

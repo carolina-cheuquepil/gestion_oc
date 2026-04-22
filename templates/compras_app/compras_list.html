@@ -1,43 +1,155 @@
 {% extends "layouts/base.html" %}
-
-
-{% block title %}Lista de compras{% endblock %} 
+{% block title %}Compras IT{% endblock %}
 
 {% block content %}
-<h2 class="mb-3">Compras</h2>
-<!--FrontEnd: Paso 2 y 5 ahahhaha -->
+<div class="page-header">
+  <h1 class="page-title">Compras IT</h1>
+  <a class="btn btn-primary" href="{% url 'compra_create' %}">
+    <i class="bi bi-plus-lg me-1"></i>Nueva compra
+  </a>
+</div>
 
-<a class="btn btn-primary mb-3" href="{% url 'compra_create' %}">
-  + Nueva compra
-</a>
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Documento</th>
+        <th>Razón Social</th>
+        <th>Proveedor</th>
+        <th>Folio</th>
+        <th>Emisión</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in compras %}
+      <tr>
+        <td class="text-muted">{{ c.compra_id }}</td>
+        <td>{{ c.tipo_documento }}</td>
+        <td>{{ c.razon_social }}</td>
+        <td>{{ c.proveedor }}</td>
+        <td>{{ c.folio }}</td>
+        <td>{{ c.fecha_emision|date:"d-m-Y" }}</td>
+        <td>
+          {% with e=c.estado_documento %}
+            {% if e == "ACEPTADO" or e == "AUTORIZADO" %}
+              <span class="badge bg-success">{{ e }}</span>
+            {% elif e == "PENDIENTE" or e == "EN REVISION" %}
+              <span class="badge bg-warning text-dark">{{ e }}</span>
+            {% elif e == "RECHAZADO" or e == "ANULADO" %}
+              <span class="badge bg-danger">{{ e }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ e }}</span>
+            {% endif %}
+          {% endwith %}
+        </td>
+        <td>
+          <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'compra_detail' c.compra_id %}">
+            <i class="bi bi-eye me-1"></i>Ver
+          </a>
+          <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'compra_update' c.compra_id %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+          {% if c.oc_enviada and c.estado_documento.nombre != "Aprobado" %}
+          <button type="button"
+                  class="btn btn-sm btn-outline-success aprobar-oc-btn"
+                  data-pk="{{ c.compra_id }}"
+                  data-folio="{{ c.folio|default:'SIN FOLIO' }}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalAprobarOC">
+            <i class="bi bi-check-circle me-1"></i>Aprobar OC
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center text-muted py-4">No hay compras registradas.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Documeto</th>
-      <th>Razón Social</th>
-      <th>Proveedor</th>
-      <th>Folio</th>
-      <th>Emisión</th>
-      <th>Estado</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for c in compras %}
-    <tr>
-      <td>{{ c.compra_id }}</td>
-      <td>{{ c.tipo_documento }}</td>
-      <td>{{ c.razon_social }}</td>
-      <td>{{ c.proveedor }}</td>
-      <td>{{ c.folio }}</td>
-      <td>{{ c.fecha_emision }}</td>
-      <td>{{ c.estado_documento }}</td>
-      <td><a class="btn btn-sm btn-primary" href="{% url 'compra_detail' c.compra_id %}">Detalle</a>
-        <a class="btn btn-sm btn-primary" href="{% url 'compra_update' c.compra_id %}">Editar</a>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<!-- Modal aprobar OC -->
+<div class="modal fade" id="modalAprobarOC" tabindex="-1" aria-labelledby="modalAprobarOCLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalAprobarOCLabel">
+          <i class="bi bi-check-circle me-2 text-success"></i>Aprobar OC
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="aprobar-alerta" class="alert d-none mb-3"></div>
+        <p class="mb-3">OC: <strong id="aprobar-folio"></strong></p>
+        <div class="mb-3">
+          <label class="form-label">Fecha de aprobación <span class="text-danger">*</span></label>
+          <input type="date" id="aprobar-fecha" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="aprobar-guardar-btn">
+          <i class="bi bi-check-circle me-1"></i>Confirmar aprobación
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modalEl = document.getElementById("modalAprobarOC");
+  const guardarBtn = document.getElementById("aprobar-guardar-btn");
+  const alerta = document.getElementById("aprobar-alerta");
+  let comprapk = null;
+
+  document.querySelectorAll(".aprobar-oc-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      comprapk = btn.dataset.pk;
+      document.getElementById("aprobar-folio").textContent = btn.dataset.folio;
+      document.getElementById("aprobar-fecha").value = "";
+      alerta.className = "alert d-none";
+      alerta.textContent = "";
+      guardarBtn.disabled = false;
+    });
+  });
+
+  guardarBtn.addEventListener("click", async () => {
+    const fecha = document.getElementById("aprobar-fecha").value;
+    if (!fecha) {
+      alerta.className = "alert alert-warning";
+      alerta.textContent = "Debes ingresar la fecha de aprobación.";
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+    fd.append("fecha_aprobacion", fecha);
+
+    guardarBtn.disabled = true;
+    try {
+      const url = "{% url 'aprobar_oc' 0 %}".replace("/0/", `/${comprapk}/`);
+      const res = await fetch(url, { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.ok) {
+        bootstrap.Modal.getInstance(modalEl).hide();
+        window.location.reload();
+      } else {
+        alerta.className = "alert alert-danger";
+        alerta.textContent = data.error || "Error al aprobar la OC.";
+        guardarBtn.disabled = false;
+      }
+    } catch {
+      alerta.className = "alert alert-danger";
+      alerta.textContent = "Error de conexión.";
+      guardarBtn.disabled = false;
+    }
+  });
+});
+</script>
 {% endblock %}

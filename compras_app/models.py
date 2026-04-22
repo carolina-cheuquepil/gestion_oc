@@ -6,91 +6,20 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 # PASO 1° BD: refleja la BD. Estructura
-
-# ----------- Proveedores ------------
-class Proveedor(models.Model):
-    proveedor_id = models.AutoField(primary_key=True)
-    razon_social = models.CharField(max_length=150)
-    nombre = models.CharField(max_length=50, blank=True, null=True)
-    rut = models.CharField(max_length=12, unique=True)
-    empresa_estado = models.BooleanField()
+# ----------- Compras ------------
+class TipoOC(models.Model):
+    tipo_oc_id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=50, unique=True)
+    afecta_iva = models.BooleanField(default=True)
+    requiere_retencion = models.BooleanField(default=False)
 
     class Meta:
+        db_table = "tipo_oc"
         managed = False
-        db_table = "proveedor"
-    
-    def __str__(self):
-        return self.razon_social
-
-class Producto(models.Model):
-    producto_id = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=180)
-    descripcion = models.TextField(null=True, blank=True)
-    tipo_producto =  models.CharField(max_length=50)
-
-    class Meta:
-        managed = False
-        db_table = "producto"
 
     def __str__(self):
         return self.nombre
 
-class ProveedorProducto(models.Model):
-    proveedor_producto_id = models.AutoField(primary_key=True)
-
-    proveedor = models.ForeignKey(
-        "Proveedor",
-        on_delete=models.DO_NOTHING,
-        db_column="proveedor_id",
-        related_name="proveedor_productos",
-    )
-
-    producto = models.ForeignKey(
-        "Producto",
-        on_delete=models.DO_NOTHING,
-        db_column="producto_id",
-        related_name="proveedor_productos",
-    )
-
-    # Unidad de compra (ej: UN, CAJA, KG). Si quieres, después lo normalizamos a tabla UoM.
-    uom_compra = models.CharField(max_length=20, null=True, blank=True)
-
-    class Meta:
-        managed = False
-        db_table = "proveedor_producto"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["proveedor", "producto"],
-                name="uq_proveedor_producto",
-            )
-        ]
-
-    def __str__(self):
-        return f"{self.proveedor_id} - {self.producto_id}"
-
-class ProveedorProductoPrecio(models.Model):
-    proveedor_producto_precio_id = models.AutoField(primary_key=True)
-
-    proveedor_producto = models.ForeignKey(
-        "ProveedorProducto",
-        on_delete=models.DO_NOTHING,
-        db_column="proveedor_producto_id",
-        related_name="precios",
-    )
-
-    precio_neto = models.DecimalField(max_digits=14, decimal_places=2)
-
-    # CLP, USD, etc.
-    moneda = models.CharField(max_length=10, default="CLP")
-
-    class Meta:
-        managed = False
-        db_table = "proveedor_producto_precio"
-
-    def __str__(self):
-        return f"{self.proveedor_producto_id} - {self.precio_neto} {self.moneda}"
-
-# ----------- Compras ------------
 class TipoDocumento(models.Model):
     tipo_documento_id = models.AutoField(primary_key=True)
     codigo = models.CharField(max_length=10, unique=True)
@@ -129,6 +58,13 @@ class Moneda(models.Model):
 class Compra(models.Model):
     compra_id = models.AutoField(primary_key=True)
 
+    tipo_oc = models.ForeignKey(
+        "TipoOC",
+        on_delete=models.PROTECT,
+        db_column="tipo_oc_id",
+        related_name="compras",
+    )
+
     tipo_documento = models.ForeignKey(
         "TipoDocumento",
         on_delete=models.PROTECT,
@@ -151,7 +87,7 @@ class Compra(models.Model):
     )
 
     proveedor = models.ForeignKey(
-        "Proveedor",
+        "proveedores_app.Proveedor",
         on_delete=models.PROTECT,
         db_column="proveedor_id",
         related_name="compras",
@@ -233,7 +169,7 @@ class CompraItem(models.Model):
     nro_linea = models.IntegerField(default=1)
 
     producto = models.ForeignKey(
-        "Producto",
+        "proveedores_app.Producto",
         on_delete=models.PROTECT,
         db_column="producto_id",
         null=True,
@@ -242,6 +178,22 @@ class CompraItem(models.Model):
     )
 
     descripcion_libre = models.CharField(max_length=255, null=True, blank=True)
+
+    sucursal = models.ForeignKey(
+        "activos_app.Sucursal",
+        on_delete=models.PROTECT,
+        db_column="sucursal_id",
+        related_name="compra_items",
+    )
+
+    proyecto = models.ForeignKey(
+        "ProyectoInformatica",
+        on_delete=models.SET_NULL,
+        db_column="proyecto_id",
+        null=True,
+        blank=True,
+        related_name="compra_items",
+    )
 
     cantidad = models.DecimalField(max_digits=14, decimal_places=3, default=1)
     precio_unitario = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -266,8 +218,25 @@ class CompraItem(models.Model):
         ]
 
     def __str__(self):
-        nombre = self.producto.nombre if self.producto_id else (self.descripcion_libre or "Ítem")
+        nombre = self.producto.producto_nombre if self.producto_id else (self.descripcion_libre or "Ítem")
         return f"Compra {self.compra_id} - Línea {self.nro_linea}: {nombre}"
+
+# ----------- Proyectos TI ------------
+
+class ProyectoInformatica(models.Model):
+    proyecto_id = models.AutoField(primary_key=True)
+    proyecto_nombre = models.CharField(max_length=150)
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "proyecto_informatica"
+        managed = False
+        ordering = ["proyecto_nombre"]
+
+    def __str__(self):
+        return self.proyecto_nombre
 
 # ----------- Distribución interna ------------
 

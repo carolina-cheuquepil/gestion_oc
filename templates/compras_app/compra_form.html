@@ -1,10 +1,55 @@
 {% extends "layouts/base.html" %}
 {% block title %}Nueva compra{% endblock %}
 
+{% block extra_css %}
+  {{ form.media.css }}
+  <style>
+    select[name$="-producto"] { display: none !important; }
+  </style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>{% if is_edit %}Editar Compra{% else %}Nueva compra{% endif %}</h2>
-  <a class="btn btn-outline-secondary" href="{% url 'compras_ui' %}">Volver</a>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h2 class="mb-0">{% if is_edit %}Editar Compra{% else %}Nueva compra{% endif %}</h2>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="{% url 'compras_ui' %}">Volver</a>
+    {% if is_edit %}
+    <button type="button"
+            class="btn btn-outline-secondary"
+            data-bs-toggle="modal"
+            data-bs-target="#modalSubirCotizacion">
+      <i class="bi bi-upload me-1"></i>Subir cotización
+    </button>
+    {% if tiene_cotizacion %}
+    <button type="button"
+            class="btn btn-success"
+            data-bs-toggle="modal"
+            data-bs-target="#modalEnviarOC">
+      <i class="bi bi-send me-1"></i>Enviar OC
+    </button>
+    {% else %}
+    <button type="button"
+            class="btn btn-success"
+            disabled
+            title="Suba primero la cotización en PDF">
+      <i class="bi bi-send me-1"></i>Enviar OC
+    </button>
+    {% endif %}
+    {% else %}
+    <button type="button"
+            class="btn btn-outline-secondary"
+            disabled
+            title="Guarda la compra primero para habilitar esta acción">
+      <i class="bi bi-upload me-1"></i>Subir cotización
+    </button>
+    <button type="button"
+            class="btn btn-success"
+            disabled
+            title="Guarda la compra primero para habilitar esta acción">
+      <i class="bi bi-send me-1"></i>Enviar OC
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 <form method="post"
@@ -16,6 +61,57 @@
 
   <!-- CABECERA -->
   {% for field in form %}
+    {% if field.name == "folio_cotizacion" or field.name == "fecha_cotizacion" or field.name == "folio" or field.name == "fecha_emision" %}
+      {# rendered in the Documentos section below #}
+    {% elif field.name == "razon_social" %}
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+      <div class="col-sm-6">
+        <div class="row g-2 align-items-start">
+          <div class="col-auto">
+            <input type="number"
+                   id="id_codigo_empresa_input"
+                   class="form-control"
+                   placeholder="Código empresa"
+                   min="1"
+                   style="width: 130px;"
+                   title="Ingresa el código de empresa para buscar">
+            <div id="codigo-feedback" class="invalid-feedback"></div>
+          </div>
+          <div class="col">
+            {{ field }}
+          </div>
+        </div>
+        {% if field.errors %}
+          <div class="invalid-feedback d-block">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% elif field.name == "proveedor" %}
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+      <div class="col-sm-6">
+        <div class="row g-2 align-items-start">
+          <div class="col-auto">
+            <input type="number"
+                   id="id_proveedor_rut_input"
+                   class="form-control"
+                   placeholder="RUT numérico"
+                   min="1"
+                   style="width: 145px;"
+                   title="Ingresa el RUT sin dígito verificador">
+            <div id="proveedor-rut-feedback" class="invalid-feedback" style="display:none;"></div>
+          </div>
+          <div class="col">
+            {{ field }}
+            {% if field.errors %}
+              <div class="invalid-feedback d-block">{{ field.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
     <div class="row mb-3">
       <label class="col-sm-3 col-form-label">{{ field.label }}</label>
       <div class="col-sm-6">
@@ -27,13 +123,80 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
   {% endfor %}
+
+  <!-- DOCUMENTOS -->
+  <hr class="my-3">
+  <h6 class="mb-3 text-secondary">Documentos</h6>
+
+  <div class="row mb-3">
+    <div class="col-sm-6">
+      <div class="card border-0 bg-light p-3">
+        <p class="fw-semibold mb-2 small text-uppercase text-muted">Cotización</p>
+        <div class="mb-2">
+          <label class="form-label mb-1 small">{{ form.folio_cotizacion.label }}</label>
+          {{ form.folio_cotizacion }}
+          {% if form.folio_cotizacion.errors %}
+            <div class="invalid-feedback d-block">{{ form.folio_cotizacion.errors }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <label class="form-label mb-1 small">{{ form.fecha_cotizacion.label }}</label>
+          {{ form.fecha_cotizacion }}
+          {% if form.fecha_cotizacion.errors %}
+            <div class="invalid-feedback d-block">{{ form.fecha_cotizacion.errors }}</div>
+          {% endif %}
+        </div>
+        {% if is_edit %}
+        <div class="mt-3">
+          <button type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalSubirCotizacion">
+            <i class="bi bi-upload me-1"></i>Subir cotización
+          </button>
+        </div>
+        {% else %}
+        <div class="mt-3">
+          <label class="form-label mb-1 small">Archivo PDF</label>
+          <input type="file" name="cotizacion_archivo" class="form-control form-control-sm" accept=".pdf">
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="card border-0 bg-light p-3">
+        <p class="fw-semibold mb-2 small text-uppercase text-muted">Orden de Compra</p>
+        <div class="mb-2">
+          <label class="form-label mb-1 small">{{ form.folio.label }}</label>
+          {{ form.folio }}
+          {% if form.folio.errors %}
+            <div class="invalid-feedback d-block">{{ form.folio.errors }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <label class="form-label mb-1 small">{{ form.fecha_emision.label }}</label>
+          {{ form.fecha_emision }}
+          {% if form.fecha_emision.errors %}
+            <div class="invalid-feedback d-block">{{ form.fecha_emision.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 
   <hr class="my-4">
 
   <!-- DETALLE / PRODUCTOS -->
-  <div class="d-flex align-items-center gap-2 mb-2">
+  <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Productos / Detalle</h5>
+    <button type="button"
+            class="btn btn-outline-primary btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#modalNuevoProducto">
+      + Nuevo producto
+    </button>
   </div>
 
   {{ formset.management_form }}
@@ -44,15 +207,22 @@
     </div>
   {% endif %}
 
+  <button type="button" class="btn btn-outline-primary mb-3" id="add-row">
+    + Agregar item
+  </button>
+
   <table class="table table-sm" id="items-table">
     <thead>
       <tr>
         <th>Producto</th>
-        <th class="text-end">Cantidad</th>
-        <th class="text-end">P. Unitario</th>
-        <th class="text-end">Descuento</th>
-        <th>IVA</th>
-        <th>Eliminar</th>
+        <th style="width:130px">Sucursal</th>
+        <th style="width:160px">Proyecto</th>
+        <th class="text-end" style="width:90px">Cantidad</th>
+        <th class="text-end" style="width:150px">P. Unitario</th>
+        <th class="text-end" style="width:100px">Descuento</th>
+        <th style="width:60px">IVA</th>
+        <th class="text-end" style="width:120px">Subtotal</th>
+        <th style="width:70px">Eliminar</th>
       </tr>
     </thead>
     <tbody id="items-tbody">
@@ -61,17 +231,28 @@
           {% for hidden in f.hidden_fields %}
             {{ hidden }}
           {% endfor %}
-          <td>{{ f.producto }}</td>
+          <td>
+            <div class="d-flex gap-1 align-items-center">
+              {{ f.producto }}
+              <span class="producto-nombre text-muted fst-italic small">Sin producto</span>
+              <button type="button" class="btn btn-outline-secondary btn-sm lupa-btn" title="Buscar producto">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </td>
+          <td>{{ f.sucursal }}</td>
+          <td>{{ f.proyecto }}</td>
           <td class="text-end">{{ f.cantidad }}</td>
           <td class="text-end">{{ f.precio_unitario }}</td>
           <td class="text-end">{{ f.descuento_porcentaje }}</td>
           <td>{{ f.afecta_iva }}</td>
+          <td class="text-end"><span class="item-subtotal text-muted">—</span></td>
           <td>{{ f.DELETE }}</td>
         </tr>
 
         {% if f.errors %}
         <tr>
-          <td colspan="6" class="text-danger">
+          <td colspan="9" class="text-danger">
             {{ f.errors }}
           </td>
         </tr>
@@ -80,9 +261,33 @@
     </tbody>
   </table>
 
-  <button type="button" class="btn btn-outline-primary mb-3" id="add-row">
-    + Agregar producto
-  </button>
+  <div class="d-flex justify-content-end mb-3">
+    <table class="table table-sm w-auto text-end">
+      <tbody>
+        <tr>
+          <th class="pe-4">Total Neto:</th>
+          <td style="min-width:140px"><strong id="total-neto-display">0</strong></td>
+        </tr>
+        <tr id="fila-iva" class="d-none">
+          <th class="pe-4 text-muted">IVA (19%):</th>
+          <td><span id="total-iva-display" class="text-muted">0</span></td>
+        </tr>
+        <tr id="fila-retencion" class="d-none">
+          <th class="pe-4 text-danger">Retención (13,75%):</th>
+          <td><span id="total-retencion-display" class="text-danger">0</span></td>
+        </tr>
+        <tr class="border-top">
+          <th class="pe-4">Total:</th>
+          <td><strong id="total-display">0</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {{ tipos_oc|json_script:"tipos-oc-data" }}
+  {{ monedas|json_script:"monedas-data" }}
+
+  
 
   <!-- TEMPLATE VACÍO -->
   <template id="empty-form-template">
@@ -90,24 +295,27 @@
       {% for hidden in formset.empty_form.hidden_fields %}
         {{ hidden }}
       {% endfor %}
-      <td>{{ formset.empty_form.producto }}</td>
+      <td>
+        <div class="d-flex gap-1 align-items-center">
+          {{ formset.empty_form.producto }}
+          <span class="producto-nombre text-muted fst-italic small">Sin producto</span>
+          <button type="button" class="btn btn-outline-secondary btn-sm lupa-btn" title="Buscar producto">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+      </td>
+      <td>{{ formset.empty_form.sucursal }}</td>
+      <td>{{ formset.empty_form.proyecto }}</td>
       <td class="text-end">{{ formset.empty_form.cantidad }}</td>
       <td class="text-end">{{ formset.empty_form.precio_unitario }}</td>
       <td class="text-end">{{ formset.empty_form.descuento_porcentaje }}</td>
       <td>{{ formset.empty_form.afecta_iva }}</td>
+      <td class="text-end"><span class="item-subtotal text-muted">—</span></td>
       <td>{{ formset.empty_form.DELETE }}</td>
     </tr>
   </template>
 
   <hr class="my-4">
-
-  <!-- ARCHIVO COTIZACIÓN -->
-  <div class="row mb-3">
-    <label class="col-sm-3 col-form-label">Cotización</label>
-    <div class="col-sm-6">
-      {{ form.archivo }}
-    </div>
-  </div>
 
   <!-- BOTONES -->
   <div class="row mt-4">
@@ -121,17 +329,377 @@
         Volver
       </a>
 
-      <a class="btn btn-outline-primary"
-         href="{% url 'producto_create' %}"
-         target="_blank">
-        + Nuevo producto
-      </a>
+      {% if is_edit %}
+      <button type="button"
+              class="btn btn-outline-secondary ms-2"
+              data-bs-toggle="modal"
+              data-bs-target="#modalSubirCotizacion">
+        <i class="bi bi-upload me-1"></i>Subir cotización
+      </button>
+
+      {% if tiene_cotizacion %}
+      <button type="button"
+              class="btn btn-success ms-2"
+              data-bs-toggle="modal"
+              data-bs-target="#modalEnviarOC">
+        <i class="bi bi-send me-1"></i>Enviar OC
+      </button>
+      {% else %}
+      <button type="button"
+              class="btn btn-success ms-2"
+              disabled
+              title="Suba primero la cotización en PDF">
+        <i class="bi bi-send me-1"></i>Enviar OC
+      </button>
+      {% endif %}
+      {% else %}
+      <button type="button"
+              class="btn btn-outline-secondary ms-2"
+              disabled
+              title="Guarda la compra primero para habilitar esta acción">
+        <i class="bi bi-upload me-1"></i>Subir cotización
+      </button>
+      <button type="button"
+              class="btn btn-success ms-2"
+              disabled
+              title="Guarda la compra primero para habilitar esta acción">
+        <i class="bi bi-send me-1"></i>Enviar OC
+      </button>
+      {% endif %}
     </div>
   </div>
 
 </form>
 
+{% if is_edit %}
+<!-- Modal subir cotización -->
+<div class="modal fade" id="modalSubirCotizacion" tabindex="-1" aria-labelledby="modalSubirCotizacionLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalSubirCotizacionLabel">
+          <i class="bi bi-upload me-2"></i>Subir cotización
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="cot-alerta" class="alert d-none mb-3"></div>
+        <div class="mb-3 text-center py-2">
+          <i class="bi bi-file-earmark-arrow-up" style="font-size: 2.5rem; color: #6c757d;"></i>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Archivo PDF <span class="text-danger">*</span></label>
+          <input type="file" id="cot-archivo" class="form-control" accept=".pdf">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="cot-guardar-btn">
+          <i class="bi bi-upload me-1"></i>Subir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modalEl = document.getElementById("modalSubirCotizacion");
+  const guardarBtn = document.getElementById("cot-guardar-btn");
+  const alerta = document.getElementById("cot-alerta");
+
+  modalEl.addEventListener("show.bs.modal", () => {
+    alerta.className = "alert d-none";
+    alerta.textContent = "";
+    document.getElementById("cot-archivo").value = "";
+    guardarBtn.disabled = false;
+  });
+
+  guardarBtn.addEventListener("click", async () => {
+    const archivo = document.getElementById("cot-archivo").files[0];
+    if (!archivo) {
+      alerta.className = "alert alert-warning";
+      alerta.textContent = "Debes seleccionar un archivo PDF.";
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+    fd.append("archivo", archivo);
+
+    guardarBtn.disabled = true;
+    try {
+      const res = await fetch("{% url 'cotizacion_upload' compra.pk %}", {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        body: fd,
+      });
+      const data = await res.json();
+      if (data.ok) {
+        bootstrap.Modal.getInstance(modalEl).hide();
+        window.location.reload();
+      } else {
+        const msgs = Object.values(data.errors).flat().map(e => e.message).join(" ");
+        alerta.className = "alert alert-danger";
+        alerta.textContent = msgs || "Error al subir la cotización.";
+        guardarBtn.disabled = false;
+      }
+    } catch {
+      alerta.className = "alert alert-danger";
+      alerta.textContent = "Error de conexión.";
+      guardarBtn.disabled = false;
+    }
+  });
+});
+</script>
+
+<!-- Formulario oculto para enviar OC (fuera del form principal) -->
+<form id="form-enviar-oc"
+      method="post"
+      action="{% url 'enviar_oc' compra.pk %}"
+      style="display:none;">
+  {% csrf_token %}
+</form>
+
+<!-- Modal confirmación envío OC -->
+<div class="modal fade" id="modalEnviarOC" tabindex="-1" aria-labelledby="modalEnviarOCLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEnviarOCLabel">
+          <i class="bi bi-send me-2 text-success"></i>Confirmar envío de OC
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">¿Está seguro de enviar el correo de autorización para la siguiente OC?</p>
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr>
+              <td class="text-muted fw-semibold" style="width:40%">N° OC</td>
+              <td class="fw-bold">{{ compra.folio|default:"SIN FOLIO" }}</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold">Empresa</td>
+              <td>{{ compra.razon_social }}</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold">Proveedor</td>
+              <td>{{ compra.proveedor }}</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold">Monto total</td>
+              <td class="fw-bold">{{ compra.moneda.codigo }} {{ compra.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button"
+                class="btn btn-success"
+                onclick="document.getElementById('form-enviar-oc').submit()">
+          <i class="bi bi-send me-1"></i>Sí, enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal nuevo producto -->
+<div class="modal fade" id="modalNuevoProducto" tabindex="-1" aria-labelledby="modalNuevoProductoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevoProductoLabel">Nuevo producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="np-alerta" class="alert d-none mb-3"></div>
+        <div class="mb-3">
+          <label class="form-label">Nombre <span class="text-danger">*</span></label>
+          <input type="text" id="np-nombre" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">SKU <span class="text-danger">*</span></label>
+          <input type="text" id="np-sku" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Descripción</label>
+          <textarea id="np-descripcion" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Marca</label>
+          <select id="np-marca" class="form-select">
+            <option value="">---------</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">UOM</label>
+          <input type="text" id="np-uom" class="form-control" placeholder="Ej: UN, KG, LT">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="np-guardar-btn">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de búsqueda de productos -->
+<div class="modal fade" id="modalBuscarProducto" tabindex="-1" aria-labelledby="modalBuscarProductoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalBuscarProductoLabel">
+          <i class="bi bi-search me-2"></i>Buscar producto del proveedor
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text"
+               id="buscar-producto-input"
+               class="form-control mb-3"
+               placeholder="Buscar por SKU, nombre o descripción...">
+        <div id="modal-sin-proveedor" class="text-muted text-center py-3 d-none">
+          Selecciona primero un proveedor.
+        </div>
+        <div id="modal-sin-resultados" class="text-muted text-center py-3 d-none">
+          Sin resultados.
+        </div>
+        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+          <table class="table table-hover table-sm align-middle" id="tabla-productos-modal">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+              <tr>
+                <th style="width:120px">SKU</th>
+                <th>Nombre</th>
+                <th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody id="modal-productos-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Evitar que Enter en inputs de texto/número envíe el formulario accidentalmente
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Enter") return;
+  const tag = e.target.tagName;
+  if (tag === "TEXTAREA" || tag === "BUTTON" || tag === "A") return;
+  if (e.target.type === "submit") return;
+  e.preventDefault();
+});
+
+// ---------- CÁLCULO TOTAL NETO / IVA / RETENCIÓN ----------
+const TIPOS_OC  = JSON.parse(document.getElementById("tipos-oc-data")?.textContent || "[]");
+const MONEDAS   = JSON.parse(document.getElementById("monedas-data")?.textContent  || "[]");
+const IVA_PCT       = 19;
+const RETENCION_PCT = 13.75;
+
+function getMonedaCodigo() {
+  const sel = document.getElementById("id_moneda");
+  if (!sel || !sel.value) return "CLP";
+  const m = MONEDAS.find(x => String(x.moneda_id) === String(sel.value));
+  return m ? m.codigo : "CLP";
+}
+
+function getTipoOCActual() {
+  const sel = document.getElementById("id_tipo_oc");
+  if (!sel || !sel.value) return null;
+  return TIPOS_OC.find(t => String(t.tipo_oc_id) === String(sel.value)) || null;
+}
+
+function calcularSubtotalFila(row) {
+  const deleteChk = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+  if (deleteChk && deleteChk.checked) return 0;
+
+  const cantidad  = parseFloat(row.querySelector('input[name$="-cantidad"]')?.value)             || 0;
+  const precio    = parseFloat(row.querySelector('input[name$="-precio_unitario"]')?.value)       || 0;
+  const descuento = parseFloat(row.querySelector('input[name$="-descuento_porcentaje"]')?.value)  || 0;
+
+  return cantidad * precio * (1 - descuento / 100);
+}
+
+function formatearMonto(valor, codigo) {
+  switch (codigo) {
+    case "USD":
+      return "USD " + valor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    case "UF":
+      return "UF " + valor.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    default: // CLP
+      return "$ " + Math.round(valor).toLocaleString("es-CL");
+  }
+}
+
+function recalcularTotales() {
+  const moneda = getMonedaCodigo();
+  let totalNeto = 0;
+  document.querySelectorAll("#items-tbody .item-row").forEach(row => {
+    const subtotal = calcularSubtotalFila(row);
+    const span = row.querySelector(".item-subtotal");
+    if (span) {
+      if (subtotal > 0) {
+        span.textContent = formatearMonto(subtotal, moneda);
+        span.classList.remove("text-muted");
+      } else {
+        span.textContent = "—";
+        span.classList.add("text-muted");
+      }
+    }
+    totalNeto += subtotal;
+  });
+
+  const tipo = getTipoOCActual();
+  const afectaIva       = tipo ? tipo.afecta_iva       : false;
+  const requiereRet     = tipo ? tipo.requiere_retencion : false;
+
+  const iva       = afectaIva   ? totalNeto * (IVA_PCT / 100)       : 0;
+  const retencion = requiereRet ? totalNeto * (RETENCION_PCT / 100)  : 0;
+  const total     = totalNeto + iva - retencion;
+
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl("total-neto-display",      formatearMonto(totalNeto, moneda));
+  setEl("total-iva-display",       formatearMonto(iva,       moneda));
+  setEl("total-retencion-display", formatearMonto(retencion, moneda));
+  setEl("total-display",           formatearMonto(total,     moneda));
+
+  document.getElementById("fila-iva")?.classList.toggle("d-none", !afectaIva);
+  document.getElementById("fila-retencion")?.classList.toggle("d-none", !requiereRet);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const tbody = document.getElementById("items-tbody");
+  if (!tbody) return;
+
+  tbody.addEventListener("input", e => {
+    const field = e.target;
+    if (
+      field.matches('input[name$="-cantidad"]') ||
+      field.matches('input[name$="-precio_unitario"]') ||
+      field.matches('input[name$="-descuento_porcentaje"]')
+    ) {
+      recalcularTotales();
+    }
+  });
+
+  tbody.addEventListener("change", e => {
+    if (e.target.matches('input[type="checkbox"][name$="-DELETE"]')) {
+      recalcularTotales();
+    }
+  });
+
+  document.getElementById("id_tipo_oc")?.addEventListener("change", recalcularTotales);
+  document.getElementById("id_moneda")?.addEventListener("change", recalcularTotales);
+
+  recalcularTotales();
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   const addBtn = document.getElementById("add-row");
   const tbody = document.getElementById("items-tbody");
@@ -149,4 +717,432 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+{% endblock %}
+
+{% block extra_js %}
+  {{ form.media.js }}
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const codigoInput = document.getElementById("id_codigo_empresa_input");
+    const feedback = document.getElementById("codigo-feedback");
+    const $select = $("#id_razon_social");
+
+    if (!codigoInput || !$select.length) return;
+
+    async function sincronizarCodigoPorId(holdingId) {
+      if (!holdingId) { codigoInput.value = ""; return; }
+      try {
+        const res = await fetch(`/api/holdings/buscar/?id=${encodeURIComponent(holdingId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          codigoInput.value = data.codigo_empresa;
+        }
+      } catch { /* silencioso */ }
+    }
+
+    // Al cargar la página en modo edición, sincronizar código desde el ID seleccionado
+    const initialId = $select.val();
+    if (initialId) sincronizarCodigoPorId(initialId);
+
+    // Al cambiar el Select2, actualizar el input de código
+    $select.on("select2:select", function () {
+      sincronizarCodigoPorId($select.val());
+      codigoInput.classList.remove("is-invalid");
+      feedback.textContent = "";
+    });
+
+    $select.on("select2:clear", function () {
+      codigoInput.value = "";
+    });
+
+    // Al ingresar código y salir del campo, buscar la empresa
+    codigoInput.addEventListener("change", async () => {
+      const codigo = codigoInput.value.trim();
+      if (!codigo) {
+        $select.val(null).trigger("change");
+        return;
+      }
+      try {
+        const res = await fetch(`/api/holdings/buscar/?codigo=${encodeURIComponent(codigo)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const option = new Option(data.razon_social, data.id, true, true);
+          $select.append(option).trigger("change");
+          codigoInput.classList.remove("is-invalid");
+          feedback.textContent = "";
+        } else {
+          codigoInput.classList.add("is-invalid");
+          feedback.textContent = "Código no encontrado.";
+          $select.val(null).trigger("change");
+        }
+      } catch {
+        codigoInput.classList.add("is-invalid");
+        feedback.textContent = "Error al buscar.";
+      }
+    });
+
+    codigoInput.addEventListener("input", () => {
+      codigoInput.classList.remove("is-invalid");
+      feedback.textContent = "";
+    });
+  });
+
+  // ---------- PROVEEDOR ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    const rutInput = document.getElementById("id_proveedor_rut_input");
+    const rutFb    = document.getElementById("proveedor-rut-feedback");
+    const $prov    = $("#id_proveedor");
+
+    if (!rutInput || !$prov.length) return;
+
+    function limpiarFeedback() {
+      rutInput.classList.remove("is-invalid");
+      rutFb.innerHTML = "";
+      rutFb.style.display = "none";
+    }
+
+    async function sincronizarDesdeId(provId) {
+      if (!provId) { rutInput.value = ""; return; }
+      try {
+        const res = await fetch(`/proveedores/ajax/proveedor/buscar/?id=${encodeURIComponent(provId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          rutInput.value = data.rut_numero;
+        }
+      } catch { /* silencioso */ }
+    }
+
+    async function buscarPorRut() {
+      const rut = rutInput.value.trim();
+      if (!rut) { $prov.val(null).trigger("change"); return; }
+      try {
+        const res = await fetch(`/proveedores/ajax/proveedor/buscar/?rut=${encodeURIComponent(rut)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const label  = data.razon_social;
+          const option = new Option(label, data.id, true, true);
+          $prov.append(option).trigger("change");
+          limpiarFeedback();
+          actualizarProductosPorProveedor(data.id);
+        } else {
+          rutInput.classList.add("is-invalid");
+          rutFb.innerHTML = 'Proveedor no existe. <a href="{% url "proveedor-nuevo" %}" target="_blank">Crear proveedor</a>';
+          rutFb.style.display = "block";
+          $prov.val(null).trigger("change");
+        }
+      } catch {
+        rutInput.classList.add("is-invalid");
+        rutFb.textContent = "Error al buscar.";
+      }
+    }
+
+    // Sincronizar al cargar en modo edición
+    const initialId = $prov.val();
+    if (initialId) {
+      sincronizarDesdeId(initialId);
+      actualizarProductosPorProveedor(initialId);
+    }
+
+    // Al cambiar el Select2, actualizar el input de RUT
+    $prov.on("select2:select", function () {
+      sincronizarDesdeId($prov.val());
+      limpiarFeedback();
+    });
+    $prov.on("select2:clear", function () {
+      rutInput.value = "";
+    });
+
+    // Buscar por RUT al salir del campo
+    rutInput.addEventListener("change", buscarPorRut);
+    rutInput.addEventListener("input", limpiarFeedback);
+
+    // Al cambiar proveedor, filtrar productos en todas las filas
+    $prov.on("select2:select select2:clear", function () {
+      const provId = $prov.val();
+      actualizarProductosPorProveedor(provId);
+    });
+  });
+
+  // ---------- FILTRO DE PRODUCTOS POR PROVEEDOR ----------
+  let productosProveedor = []; // cache
+
+  async function actualizarProductosPorProveedor(provId) {
+    if (!provId) {
+      productosProveedor = [];
+    } else {
+      try {
+        const res = await fetch(`/proveedores/ajax/proveedor/${provId}/productos/`);
+        productosProveedor = res.ok ? await res.json() : [];
+      } catch {
+        productosProveedor = [];
+      }
+    }
+    document.querySelectorAll("select[name$='-producto']").forEach(sel => {
+      aplicarOpcionesProducto(sel);
+    });
+  }
+
+  function aplicarOpcionesProducto(sel) {
+    const valorActual = sel.value;
+    sel.innerHTML = '<option value="">---------</option>';
+    productosProveedor.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.producto_id;
+      opt.textContent = p.producto_nombre;
+      if (String(p.producto_id) === String(valorActual)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // Actualizar span de nombre
+    const row = sel.closest("tr");
+    if (row) {
+      const span = row.querySelector(".producto-nombre");
+      if (span && sel.value) {
+        const opt = sel.options[sel.selectedIndex];
+        if (opt && opt.value) {
+          span.textContent = opt.text;
+          span.classList.remove("text-muted", "fst-italic");
+        }
+      }
+    }
+  }
+
+  // Inicializar spans en modo edición
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("select[name$='-producto']").forEach(sel => {
+      if (sel.value) {
+        const row = sel.closest("tr");
+        if (row) {
+          const span = row.querySelector(".producto-nombre");
+          const opt = sel.options[sel.selectedIndex];
+          if (span && opt && opt.value) {
+            span.textContent = opt.text;
+            span.classList.remove("text-muted", "fst-italic");
+          }
+        }
+      }
+    });
+  });
+
+  // Interceptar "Agregar producto" para aplicar filtro a la fila nueva
+  document.addEventListener("DOMContentLoaded", () => {
+    const addBtn = document.getElementById("add-row");
+    if (!addBtn) return;
+    addBtn.addEventListener("click", () => {
+      // Esperar un tick para que la fila sea insertada
+      setTimeout(() => {
+        const provId = $("#id_proveedor").val();
+        if (provId) {
+          document.querySelectorAll("select[name$='-producto']").forEach(sel => {
+            if (sel.options.length <= 1) aplicarOpcionesProducto(sel);
+          });
+        }
+      }, 50);
+    });
+  });
+
+  // ---------- MODAL NUEVO PRODUCTO ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    const modalNPEl = document.getElementById("modalNuevoProducto");
+    const marcaSelect = document.getElementById("np-marca");
+    const npAlerta = document.getElementById("np-alerta");
+    const guardarBtn = document.getElementById("np-guardar-btn");
+
+    modalNPEl.addEventListener("show.bs.modal", async () => {
+      npAlerta.className = "alert d-none";
+      npAlerta.textContent = "";
+      document.getElementById("np-nombre").value = "";
+      document.getElementById("np-sku").value = "";
+      document.getElementById("np-descripcion").value = "";
+      document.getElementById("np-uom").value = "";
+      marcaSelect.value = "";
+
+      if (marcaSelect.options.length <= 1) {
+        try {
+          const res = await fetch("/proveedores/marcas/?format=json");
+          if (res.ok) {
+            const data = await res.json();
+            const lista = data.results || data;
+            lista.forEach(m => {
+              const opt = document.createElement("option");
+              opt.value = m.marca_id;
+              opt.textContent = m.marca_nombre;
+              marcaSelect.appendChild(opt);
+            });
+          }
+        } catch { /* silencioso */ }
+      }
+    });
+
+    modalNPEl.addEventListener("shown.bs.modal", () => {
+      document.getElementById("np-nombre").focus();
+    });
+
+    guardarBtn.addEventListener("click", async () => {
+      const nombre = document.getElementById("np-nombre").value.trim();
+      const sku = document.getElementById("np-sku").value.trim();
+      if (!nombre || !sku) {
+        npAlerta.className = "alert alert-warning";
+        npAlerta.textContent = "Nombre y SKU son obligatorios.";
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+      fd.append("producto_nombre", nombre);
+      fd.append("sku", sku);
+      fd.append("descripcion", document.getElementById("np-descripcion").value.trim());
+      fd.append("uom", document.getElementById("np-uom").value.trim());
+      const marcaVal = marcaSelect.value;
+      if (marcaVal) fd.append("marca", marcaVal);
+      const provId = $("#id_proveedor").val() || "";
+      if (provId) fd.append("proveedor_id", provId);
+
+      guardarBtn.disabled = true;
+      try {
+        const res = await fetch("{% url 'producto-crear-ajax' %}", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.ok) {
+          productosProveedor.push({
+            producto_id: data.producto_id,
+            producto_nombre: data.producto_nombre,
+            sku: data.sku,
+            descripcion: data.descripcion,
+          });
+          document.querySelectorAll("select[name$='-producto']").forEach(sel => {
+            aplicarOpcionesProducto(sel);
+          });
+          bootstrap.Modal.getInstance(modalNPEl).hide();
+        } else {
+          const errMsg = Object.values(data.errors).flat().join(" ");
+          npAlerta.className = "alert alert-danger";
+          npAlerta.textContent = errMsg;
+        }
+      } catch {
+        npAlerta.className = "alert alert-danger";
+        npAlerta.textContent = "Error al crear el producto.";
+      } finally {
+        guardarBtn.disabled = false;
+      }
+    });
+  });
+
+  // ---------- ENTER EN TABLA DE ITEMS: mover foco, no guardar ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    const campos = [
+      'input[name$="-cantidad"]',
+      'input[name$="-precio_unitario"]',
+      'input[name$="-descuento_porcentaje"]',
+    ].join(", ");
+
+    document.getElementById("items-tbody").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      const input = e.target.closest(campos.split(", ").map(s => s.trim()).join(", "));
+      if (!input) return;
+      e.preventDefault();
+      const row = input.closest("tr");
+      const inputs = Array.from(row.querySelectorAll('input[type="number"], input[type="text"]'))
+        .filter(el => !el.name.endsWith("-DELETE"));
+      const idx = inputs.indexOf(input);
+      if (idx !== -1 && idx < inputs.length - 1) {
+        inputs[idx + 1].focus();
+        inputs[idx + 1].select();
+      }
+    });
+  });
+
+  // ---------- MODAL BÚSQUEDA DE PRODUCTOS ----------
+  let selectObjetivo = null;
+
+  function renderizarProductosModal(lista) {
+    const tbody = document.getElementById("modal-productos-tbody");
+    const sinResultados = document.getElementById("modal-sin-resultados");
+    const tabla = document.getElementById("tabla-productos-modal");
+
+    tbody.innerHTML = "";
+
+    if (!lista.length) {
+      sinResultados.classList.remove("d-none");
+      tabla.classList.add("d-none");
+      return;
+    }
+
+    sinResultados.classList.add("d-none");
+    tabla.classList.remove("d-none");
+
+    lista.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.innerHTML = `
+        <td><span class="badge bg-secondary">${p.sku || ""}</span></td>
+        <td>${p.producto_nombre}</td>
+        <td class="text-muted small">${p.descripcion || ""}</td>
+      `;
+      tr.addEventListener("click", () => {
+        if (selectObjetivo) {
+          selectObjetivo.value = p.producto_id;
+          const row = selectObjetivo.closest("tr");
+          if (row) {
+            const span = row.querySelector(".producto-nombre");
+            if (span) {
+              span.textContent = p.producto_nombre;
+              span.classList.remove("text-muted", "fst-italic");
+            }
+          }
+        }
+        bootstrap.Modal.getInstance(document.getElementById("modalBuscarProducto")).hide();
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const modalEl = document.getElementById("modalBuscarProducto");
+    const buscarInput = document.getElementById("buscar-producto-input");
+    const sinProveedor = document.getElementById("modal-sin-proveedor");
+    const tabla = document.getElementById("tabla-productos-modal");
+
+    // Al abrir el modal
+    modalEl.addEventListener("show.bs.modal", () => {
+      buscarInput.value = "";
+      if (!productosProveedor.length) {
+        sinProveedor.classList.remove("d-none");
+        tabla.classList.add("d-none");
+        document.getElementById("modal-sin-resultados").classList.add("d-none");
+      } else {
+        sinProveedor.classList.add("d-none");
+        renderizarProductosModal(productosProveedor);
+      }
+    });
+
+    // Al terminar de abrir, enfocar el input de búsqueda
+    modalEl.addEventListener("shown.bs.modal", () => buscarInput.focus());
+
+    // Filtrar al escribir
+    buscarInput.addEventListener("input", function () {
+      const q = this.value.toLowerCase().trim();
+      if (!q) {
+        renderizarProductosModal(productosProveedor);
+        return;
+      }
+      const filtrado = productosProveedor.filter(p =>
+        (p.sku || "").toLowerCase().includes(q) ||
+        (p.producto_nombre || "").toLowerCase().includes(q) ||
+        (p.descripcion || "").toLowerCase().includes(q)
+      );
+      renderizarProductosModal(filtrado);
+    });
+
+    // Delegación: clic en cualquier botón lupa dentro de la tabla de items
+    document.getElementById("items-tbody").addEventListener("click", function (e) {
+      const btn = e.target.closest(".lupa-btn");
+      if (!btn) return;
+      const row = btn.closest("tr");
+      const sel = row.querySelector("select[name$='-producto']");
+      if (sel) {
+        selectObjetivo = sel;
+        (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)).show();
+      }
+    });
+  });
+  </script>
 {% endblock %}

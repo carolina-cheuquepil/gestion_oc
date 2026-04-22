@@ -1,126 +1,162 @@
 {# templates/compras_app/factura_ic_detail.html #}
 {% extends "layouts/base.html" %}
-{% block title %}Detalle Factura IC{% endblock %}
+{% block title %}Factura IC Nº {{ factura.folio|default:"SIN FOLIO" }}{% endblock %}
 
 {% block content %}
-<style>
-  .ficha { border-collapse: collapse; width: 100%; max-width: 950px; }
-  .ficha td, .ficha th { border: 1px solid #000; padding: 6px; vertical-align: top; }
-  .lbl { font-weight: 700; width: 190px; background: #f5f5f5; }
-  .right { text-align: right; }
-  .muted { color: #444; }
-</style>
 
-<h1>Factura IC Nº {{ factura.folio }}</h1>
+<!-- Encabezado -->
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1 fw-bold">
+      Factura Intercompany
+      <span class="text-secondary fw-normal">Nº {{ factura.folio|default:"SIN FOLIO" }}</span>
+    </h4>
+    <div class="text-muted" style="font-size:.85rem;">
+      {{ factura.empresa_emisora }} → {{ factura.empresa_receptora }}
+    </div>
+  </div>
+</div>
 
-<table class="ficha">
-  <tr>
-    <td class="lbl">EMPRESA EMISORA</td>
-    <td>{{ factura.empresa_emisora }}</td>
+<div class="row g-3 mb-3">
 
-    <td class="lbl">EMPRESA RECEPTORA</td>
-    <td>{{ factura.empresa_receptora }}</td>
-  </tr>
+  <!-- Información principal -->
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <div class="section-title">Información del documento</div>
+        <div class="row g-3">
 
-  <tr>
-    <td class="lbl">FECHA EMISIÓN</td>
-    <td>{{ factura.fecha_emision|date:"d-m-Y" }}</td>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Empresa Emisora</div>
+            <div class="detail-value">{{ factura.empresa_emisora }}</div>
+          </div>
 
-    <td class="lbl">MONEDA</td>
-    <td>{{ factura.moneda }}</td>
-  </tr>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Empresa Receptora</div>
+            <div class="detail-value">{{ factura.empresa_receptora }}</div>
+          </div>
 
-  <tr>
-    <td class="lbl">COMPRA ORIGEN</td>
-    <td colspan="3">
-      {% if factura.compra_origen %}
-        Compra Nº {{ factura.compra_origen.compra_id }} — Folio Proveedor: {{ factura.compra_origen.folio|default:"—" }}
-      {% else %}
-        —
-      {% endif %}
-    </td>
-  </tr>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Moneda</div>
+            <div class="detail-value">{{ factura.moneda }}</div>
+          </div>
 
-  <tr>
-    <td class="lbl">RECARGO</td>
-    <td>{{ factura.recargo_porcentaje }}%</td>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Fecha Emisión</div>
+            <div class="detail-value">{{ factura.fecha_emision|date:"d-m-Y" }}</div>
+          </div>
 
-    <td class="lbl">TOTALES</td>
-    <td>
-      <table style="width:100%; border-collapse: collapse;">
-        <tr>
-          <td class="lbl right" style="border:1px solid #000;">NETO</td>
-          <td class="right" style="border:1px solid #000;">{{ factura.total_neto }}</td>
-        </tr>
-        <tr>
-          <td class="lbl right" style="border:1px solid #000;">IVA</td>
-          <td class="right" style="border:1px solid #000;">{{ factura.total_iva }}</td>
-        </tr>
-        <tr>
-          <td class="lbl right" style="border:1px solid #000;">TOTAL</td>
-          <td class="right" style="border:1px solid #000;">{{ factura.total }}</td>
-        </tr>
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Recargo</div>
+            <div class="detail-value">{{ factura.recargo_porcentaje }}%</div>
+          </div>
+
+          <div class="col-6 col-md-4">
+            <div class="detail-label">Compra Origen</div>
+            <div class="detail-value">
+              {% if factura.compra_origen %}
+                Compra #{{ factura.compra_origen.compra_id }}
+                <span class="text-muted"> — Folio: {{ factura.compra_origen.folio|default:"—" }}</span>
+              {% else %}—{% endif %}
+            </div>
+          </div>
+
+          {% if factura.observacion %}
+          <div class="col-12">
+            <div class="detail-label">Observación</div>
+            <div class="detail-value text-secondary">{{ factura.observacion }}</div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Totales -->
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <div class="section-title">Totales</div>
+        <table class="table table-borderless mb-0">
+          <tbody>
+            <tr>
+              <td class="text-muted fw-semibold" style="font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;">Neto</td>
+              <td class="text-end">{{ factura.total_neto }}</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold" style="font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;">IVA</td>
+              <td class="text-end">{{ factura.total_iva }}</td>
+            </tr>
+            <tr style="border-top:2px solid var(--c-border);">
+              <td class="fw-bold">Total</td>
+              <td class="text-end fw-bold" style="font-size:1rem;">{{ factura.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Ítems -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <div class="section-title">Detalle de Ítems</div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.875rem;">
+        <thead>
+          <tr>
+            <th style="width:44px">#</th>
+            <th>Ítem (desde compra)</th>
+            <th class="text-end">Cant.</th>
+            <th class="text-end">Base</th>
+            <th class="text-end">Venta</th>
+            <th class="text-end">Neto</th>
+            <th class="text-end">IVA</th>
+            <th class="text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in factura.items.all %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td>
+              {% if it.compra_item.producto %}
+                <span class="fw-semibold">{{ it.compra_item.producto.producto_nombre }}</span>
+                <div class="text-muted small">Línea {{ it.compra_item.nro_linea }} — Compra #{{ it.compra_item.compra_id }}</div>
+              {% else %}
+                <span class="fw-semibold">{{ it.compra_item.descripcion_libre|default:"Ítem" }}</span>
+                <div class="text-muted small">Línea {{ it.compra_item.nro_linea }} — Compra #{{ it.compra_item.compra_id }}</div>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ it.cantidad }}</td>
+            <td class="text-end">{{ it.precio_base }}</td>
+            <td class="text-end">{{ it.precio_venta }}</td>
+            <td class="text-end">{{ it.subtotal_neto }}</td>
+            <td class="text-end">{{ it.subtotal_iva }}</td>
+            <td class="text-end fw-semibold">{{ it.subtotal_total }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">Sin ítems registrados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
       </table>
-    </td>
-  </tr>
+    </div>
+  </div>
+</div>
 
-  <tr>
-    <td class="lbl">DETALLE</td>
-    <td colspan="3" style="padding:0;">
-      <table style="width:100%; border-collapse: collapse;">
-        <tr>
-          <td class="lbl" style="width:50px; border:1px solid #000;">#</td>
-          <td class="lbl" style="border:1px solid #000;">Ítem (desde compra)</td>
-          <td class="lbl right" style="width:100px; border:1px solid #000;">Cant.</td>
-          <td class="lbl right" style="width:120px; border:1px solid #000;">Base</td>
-          <td class="lbl right" style="width:120px; border:1px solid #000;">Venta</td>
-          <td class="lbl right" style="width:120px; border:1px solid #000;">Neto</td>
-          <td class="lbl right" style="width:120px; border:1px solid #000;">IVA</td>
-          <td class="lbl right" style="width:120px; border:1px solid #000;">Total</td>
-        </tr>
-
-        {% for it in factura.items.all %}
-        <tr>
-          <td style="border:1px solid #000;">{{ forloop.counter }}</td>
-
-          <td style="border:1px solid #000;">
-            {% if it.compra_item.producto %}
-              <strong>{{ it.compra_item.producto.nombre }}</strong>
-              <div class="muted">
-                Línea compra: {{ it.compra_item.nro_linea }} —
-                Compra: {{ it.compra_item.compra_id }}
-              </div>
-            {% else %}
-              <strong>{{ it.compra_item.descripcion_libre|default:"Ítem" }}</strong>
-              <div class="muted">
-                Línea compra: {{ it.compra_item.nro_linea }} —
-                Compra: {{ it.compra_item.compra_id }}
-              </div>
-            {% endif %}
-          </td>
-
-          <td class="right" style="border:1px solid #000;">{{ it.cantidad }}</td>
-          <td class="right" style="border:1px solid #000;">{{ it.precio_base }}</td>
-          <td class="right" style="border:1px solid #000;">{{ it.precio_venta }}</td>
-          <td class="right" style="border:1px solid #000;">{{ it.subtotal_neto }}</td>
-          <td class="right" style="border:1px solid #000;">{{ it.subtotal_iva }}</td>
-          <td class="right" style="border:1px solid #000;">{{ it.subtotal_total }}</td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="8" class="muted" style="border:1px solid #000; padding:10px;">
-            Sin ítems registrados.
-          </td>
-        </tr>
-        {% endfor %}
-      </table>
-    </td>
-  </tr>
-</table>
-
-<br>
-
-<a class="btn btn-sm btn-primary" href="{% url 'factura_ic_update' factura.pk %}">Editar</a>
-<a class="btn btn-sm btn-outline-secondary" href="{% url 'facturas_ic_ui' %}">Volver</a>
+<!-- Acciones -->
+<div class="d-flex flex-wrap gap-2">
+  <a class="btn btn-primary btn-sm px-3" href="{% url 'factura_ic_update' factura.pk %}">
+    <i class="bi bi-pencil me-1"></i>Editar
+  </a>
+  <a class="btn btn-link btn-sm text-secondary" href="{% url 'facturas_ic_ui' %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
 
 {% endblock %}

@@ -1,119 +1,328 @@
-/* Todo Paso 2*/
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+:root {
+  --c-brand:       #1e3a7c;
+  --c-brand-light: #eef2fb;
+  --c-accent:      #2563eb;
+  --c-accent-dark: #1d4ed8;
+  --c-bg:          #f1f4f9;
+  --c-surface:     #ffffff;
+  --c-border:      #dde3ed;
+  --c-text:        #1a2035;
+  --c-text-muted:  #64748b;
+  --c-sidebar-w:   248px;
+  --c-header-h:    54px;
+  --r-card:        8px;
+  --shadow-sm:     0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:     0 4px 8px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
 }
 
-/* Header */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: .9375rem;
+  color: var(--c-text);
+  background: var(--c-bg);
+  line-height: 1.55;
+}
+
+/* ── Header ─────────────────────────────────────── */
 .header {
-    background-color: #9fb7e6;
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--c-brand);
+  box-shadow: 0 2px 8px rgba(0,0,0,.20);
 }
 
-/* Logo Dimarsa como link */
+.header-inner {
+  height: var(--c-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
 .header a {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo {
+  height: 26px;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+.header-title {
+  color: rgba(255,255,255,.75);
+  font-size: .83rem;
+  font-weight: 400;
+  letter-spacing: .025em;
+}
+
+.header-accent {
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #6A5ACD 55%, #7AA21D 100%);
+}
+
+/* ── Layout ──────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-columns: var(--c-sidebar-w) 1fr;
+  min-height: calc(100vh - var(--c-header-h) - 3px);
+}
+
+/* ── Sidebar ─────────────────────────────────────── */
+.sidebar {
+  background: var(--c-surface);
+  border-right: 1px solid var(--c-border);
+  padding: 20px 10px;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  margin-bottom: 4px;
+}
+
+.sidebar-title {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--c-text-muted);
+  padding: 0 10px 8px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #374151;
+  text-decoration: none;
+  font-size: .875rem;
+  font-weight: 450;
+  transition: background .14s, color .14s;
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+
+.sidebar-link i {
+  font-size: 1rem;
+  opacity: .7;
+  flex-shrink: 0;
+}
+
+.sidebar-link:hover {
+  background: var(--c-brand-light);
+  color: var(--c-accent);
+}
+
+.sidebar-link:hover i {
+  opacity: 1;
+}
+
+.sidebar-link.active {
+  background: var(--c-brand-light);
+  color: var(--c-accent);
+  font-weight: 600;
+}
+
+/* ── Content ─────────────────────────────────────── */
+.content {
+  padding: 28px 30px;
+  overflow-x: hidden;
+}
+
+/* ── Page header ─────────────────────────────────── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
-/* Logo */
-.logo {
-  height: 30px;
-  width: auto;
-  display: block;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+.page-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--c-text);
+  letter-spacing: -.01em;
 }
 
-/* Soporte Dimarsa*/
-.header-title {
-  color: black;
-  font-size: 0.9rem;
+/* ── Cards ───────────────────────────────────────── */
+.card {
+  border: 1px solid var(--c-border) !important;
+  border-radius: var(--r-card) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
-/* Línea de colores */
-.header-accent {
-    height: 4px;
-    width: 100%;
-    background: linear-gradient(
-        90deg,
-        #003A8F,
-        #6A5ACD,
-        #7AA21D
-    );
+/* ── Table wrapper ───────────────────────────────── */
+.table-wrapper {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
-.app {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: calc(100vh - 60px); /* ajusta según tu header */
+/* ── Tables ──────────────────────────────────────── */
+.table {
+  margin-bottom: 0;
+  font-size: .875rem;
 }
 
-.sidebar{
-  background-color: #9fb7e6;
-  border-right: 1px solid rgba(0,0,0,0.08);
-  padding: 16px;
-}
-
-.sidebar-title{
-  font-size: 0.8rem;
+.table thead th {
+  background: #f6f8fb;
+  font-size: .72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #6B7280;
-  margin-bottom: 10px;
+  letter-spacing: .065em;
+  color: var(--c-text-muted);
+  border-bottom: 1px solid var(--c-border) !important;
+  border-top: none;
+  white-space: nowrap;
+  padding: .65rem 1rem;
 }
 
-.sidebar-link{
-  display: block;
-  padding: 10px 12px;
-  border-radius: 10px;
-  color: #111827;
-  text-decoration: none;
-  margin-bottom: 6px;
+.table tbody td {
+  padding: .65rem 1rem;
+  vertical-align: middle;
+  color: var(--c-text);
+  border-color: var(--c-border);
 }
 
-.sidebar-link:hover{
-  background: rgba(106, 90, 205, 0.10); /* acento morado suave */
+.table tbody tr:last-child td {
+  border-bottom: none;
 }
 
-.content{
-  padding: 24px;
+.table-hover tbody tr:hover td {
+  background: var(--c-brand-light);
 }
 
-/* Estado Activa / No activa */
-.status-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: inline-block;
-  box-shadow: 0 0 0 2px rgba(0,0,0,.08);
+.table-bordered {
+  border: none !important;
 }
 
-.status-active {
-  background-color: #198754;
+.table-bordered td,
+.table-bordered th {
+  border-color: var(--c-border) !important;
 }
 
-.status-inactive {
-  background-color: #dc3545;
-}
-
+/* ── Forms ───────────────────────────────────────── */
 .form-control,
 .form-select {
+  border-color: var(--c-border);
+  border-radius: 6px;
+  font-size: .875rem;
+  color: var(--c-text);
+  transition: border-color .15s, box-shadow .15s;
   width: 100%;
   max-width: 100%;
 }
 
-/* Tabla detalle */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+}
+
+.form-control::placeholder {
+  color: #a0aec0;
+}
+
+.col-form-label {
+  font-size: .875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── Buttons ─────────────────────────────────────── */
+.btn {
+  font-size: .875rem;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all .14s;
+}
+
+.btn-primary {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.btn-primary:hover {
+  background: var(--c-accent-dark);
+  border-color: var(--c-accent-dark);
+}
+
+.btn-sm {
+  font-size: .8125rem;
+  padding: .25rem .6rem;
+}
+
+/* ── Status dots ─────────────────────────────────── */
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.7), 0 0 0 3px rgba(0,0,0,.1);
+}
+
+.status-active   { background-color: #10b981; }
+.status-inactive { background-color: #ef4444; }
+
+/* ── Section title (detail views) ───────────────── */
+.section-title {
+  font-size: .73rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--c-text-muted);
+  border-bottom: 1px solid var(--c-border);
+  padding-bottom: .5rem;
+  margin-bottom: 1.1rem;
+}
+
+/* ── Detail labels/values ────────────────────────── */
+.detail-label {
+  font-size: .73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--c-text-muted);
+  margin-bottom: .2rem;
+}
+
+.detail-value {
+  font-size: .925rem;
+  color: var(--c-text);
+}
+
+/* ── Ficha (print-style table) ───────────────────── */
 .ficha { border-collapse: collapse; width: 100%; max-width: 900px; }
-.ficha td, .ficha th { border: 1px solid #000; padding: 6px; vertical-align: top; }
-.lbl { font-weight: 700; width: 170px; background: #f5f5f5; }
+.ficha td, .ficha th { border: 1px solid var(--c-border); padding: 7px 10px; vertical-align: top; }
+.lbl { font-weight: 700; width: 170px; background: #f6f8fb; }
 .box { height: 140px; }
 .right { text-align: right; }
-.muted { color: #444; }
+.muted { color: var(--c-text-muted); }
 
+/* ── Alert ───────────────────────────────────────── */
+.alert {
+  border-radius: var(--r-card);
+  font-size: .875rem;
+}
 
-
+/* ── Scrollbar ───────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

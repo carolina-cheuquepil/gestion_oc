@@ -2,6 +2,7 @@
 #Para el Frontend
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from .models import Holding
 from .serializers import HoldingSerializer
 from rest_framework.viewsets import ModelViewSet
@@ -12,9 +13,31 @@ class HoldingViewSet(ModelViewSet):
     serializer_class = HoldingSerializer
 
 
+def holding_buscar_codigo(request):
+    holding_id = request.GET.get("id", "").strip()
+    codigo = request.GET.get("codigo", "").strip()
+    try:
+        if holding_id and holding_id.isdigit():
+            h = Holding.objects.get(pk=int(holding_id))
+        elif codigo and codigo.isdigit():
+            h = Holding.objects.get(codigo_empresa=int(codigo))
+        else:
+            return JsonResponse({"error": "Parámetro inválido"}, status=400)
+        return JsonResponse({
+            "id": h.pk,
+            "codigo_empresa": h.codigo_empresa,
+            "razon_social": h.razon_social or h.nombre or "",
+        })
+    except Holding.DoesNotExist:
+        return JsonResponse({"error": "No encontrado"}, status=404)
+
+
 def holding_frontend(request):
     holdings = Holding.objects.all()
-    return render(request, "holding_app/holding_list.html", {"holdings": holdings})
+    codigo = request.GET.get("codigo", "").strip()
+    if codigo:
+        holdings = holdings.filter(codigo_empresa=codigo) if codigo.isdigit() else holdings.none()
+    return render(request, "holding_app/holding_list.html", {"holdings": holdings, "codigo": codigo})
 
 def holding_create(request):
     if request.method == "POST":

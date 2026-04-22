@@ -1,0 +1,58 @@
+{% extends "layouts/base.html" %}
+{% block title %}Productos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Productos</h1>
+  <a class="btn btn-primary" href="{% url 'producto-nuevo' %}">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
+  </a>
+</div>
+<br>
+<form method="get" class="mb-3">
+  <div class="input-group" style="max-width:480px;">
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por SKU, nombre, tipo, marca, descripción o proveedor…">
+    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+    {% if q %}<a class="btn btn-outline-danger" href="{% url 'productos-lista' %}"><i class="bi bi-x-lg"></i></a>{% endif %}
+  </div>
+</form>
+
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>SKU</th>
+        <th>Nombre</th>
+        <th>Tipo</th>
+        <th>Marca</th>
+        <th>Descripción</th>
+        <th>Proveedor</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr>
+        <td class="text-muted">{{ p.producto.producto_id }}</td>
+        <td><span class="badge bg-secondary fw-normal">{{ p.producto.sku }}</span></td>
+        <td>{{ p.producto.producto_nombre }}</td>
+        <td>{{ p.producto.tipo_producto|default:"—" }}</td>
+        <td>{{ p.producto.marca|default:"—" }}</td>
+        <td class="text-muted">{{ p.producto.descripcion|truncatechars:50 }}</td>
+        <td>{{ p.proveedor.nombre }}</td>
+        <td>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'producto-editar' pk=p.producto.pk %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">Sin productos registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
