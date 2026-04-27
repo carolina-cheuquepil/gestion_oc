@@ -1,11 +1,12 @@
 #FrontEnd: Paso 1
 from django import forms
-from .models import Holding
+from .models import Direccion, Holding, Sucursal
 from django_select2.forms import ModelSelect2Widget
 
 class HoldingForm(forms.ModelForm):
-    empresa_estado = forms.ChoiceField(
+    empresa_estado = forms.TypedChoiceField(
         choices=[(True, "Activa"), (False, "No activa")],
+        coerce=lambda value: value in (True, "True", "true", "1", 1),
         widget=forms.Select(attrs={"class": "form-select"})
     )
 
@@ -20,6 +21,42 @@ class HoldingForm(forms.ModelForm):
                 field.widget.attrs["class"] = "form-select"
             else:
                 field.widget.attrs["class"] = "form-control"
+
+
+class SucursalForm(forms.ModelForm):
+    class Meta:
+        model = Sucursal
+        fields = ["codigo_sucursal", "nombre", "activa"]
+        widgets = {
+            "codigo_sucursal": forms.TextInput(attrs={"class": "form-control"}),
+            "nombre": forms.TextInput(attrs={"class": "form-control"}),
+            "activa": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
+class DireccionForm(forms.ModelForm):
+    class Meta:
+        model = Direccion
+        fields = ["calle", "numero", "ciudad", "comuna", "region"]
+        widgets = {
+            "calle": forms.TextInput(attrs={"class": "form-control"}),
+            "numero": forms.TextInput(attrs={"class": "form-control"}),
+            "ciudad": forms.TextInput(attrs={"class": "form-control"}),
+            "comuna": forms.TextInput(attrs={"class": "form-control"}),
+            "region": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        tiene_datos = any((cleaned.get(name) or "").strip() for name in self.fields)
+        if tiene_datos and not (cleaned.get("calle") or "").strip():
+            self.add_error("calle", "La calle es obligatoria si ingresas dirección.")
+        if tiene_datos and not (cleaned.get("ciudad") or "").strip():
+            self.add_error("ciudad", "La ciudad es obligatoria si ingresas dirección.")
+        return cleaned
+
+    def has_address_data(self):
+        return any((self.cleaned_data.get(name) or "").strip() for name in self.fields)
 
 class HoldingWidget(ModelSelect2Widget):
     model = Holding

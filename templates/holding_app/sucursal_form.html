@@ -1,0 +1,56 @@
+{% extends "layouts/base.html" %}
+{% block title %}{% if is_edit %}Editar Sucursal{% else %}Nueva Sucursal{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-1">{% if is_edit %}Editar Sucursal{% else %}Nueva Sucursal{% endif %}</h2>
+    <div class="text-muted" style="font-size:.85rem;">{{ holding.nombre|default:holding.razon_social }}</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'holding_detail' holding.pk %}">Volver</a>
+</div>
+
+<form method="post" class="card border-0 shadow-sm">
+  {% csrf_token %}
+  <div class="card-body p-4">
+    <h5 class="mb-3">Datos de sucursal</h5>
+
+    {% for field in sucursal_form %}
+      <div class="row mb-3">
+        <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+        <div class="col-sm-6 {% if field.name == 'activa' %}d-flex align-items-center{% endif %}">
+          {{ field }}
+          {% if field.errors %}
+            <div class="invalid-feedback d-block">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+
+    <hr class="my-4">
+    <h5 class="mb-3">Dirección</h5>
+
+    {% for field in direccion_form %}
+      <div class="row mb-3">
+        <label class="col-sm-3 col-form-label">{{ field.label }}</label>
+        <div class="col-sm-6">
+          {{ field }}
+          {% if field.errors %}
+            <div class="invalid-feedback d-block">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="row mt-4">
+      <div class="col-sm-9 offset-sm-3">
+        <button class="btn btn-primary px-5" type="submit">Guardar</button>
+        <a class="btn btn-outline-secondary ms-2" href="{% url 'holding_detail' holding.pk %}">Cancelar</a>
+        {% if is_edit %}
+          <a class="btn btn-outline-danger ms-2" href="{% url 'sucursal_delete' holding.pk sucursal.pk %}">Eliminar</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

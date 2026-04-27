@@ -17,6 +17,12 @@ from django.db.models import Max
 from decimal import Decimal
 from django.db.models import Prefetch
 from holding_app.models import Holding
+from holding_app.access import (
+    login_sucursal_required,
+    sucursal_actual_id,
+    sucursal_actual_ids,
+    SucursalAccessMixin,
+)
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 import mimetypes
@@ -29,6 +35,17 @@ class CompraViewSet(ModelViewSet):
 
 IVA_PCT = Decimal("0.19")
 RETENCION_PCT = Decimal("0.1375")
+
+
+def _sucursal_ids_request(request):
+    return sucursal_actual_ids(request)
+
+
+def _form_sucursal_kwargs(request):
+    sucursal_ids = _sucursal_ids_request(request)
+    if len(sucursal_ids) == 1:
+        return {"sucursal_id": sucursal_ids[0]}
+    return {"sucursal_ids": sucursal_ids}
 
 def _recalcular_totales_compra(compra):
     total_neto = Decimal("0.00")
@@ -47,23 +64,56 @@ def _recalcular_totales_compra(compra):
     compra.save(update_fields=["total_neto", "total_iva", "total"])
 
 #----------------- Compras IT ---------------
+@login_sucursal_required
 def compras_frontend(request):
+    sucursal_ids = _sucursal_ids_request(request)
     oc_enviada_sub = HistorialCompra.objects.filter(
         compra=OuterRef("pk"),
         tipo_documento__codigo="EMAIL",
     )
     compras = Compra.objects.select_related(
         "tipo_documento", "estado_documento", "proveedor", "razon_social"
-    ).annotate(oc_enviada=Exists(oc_enviada_sub))
-    return render(request, "compras_app/compras_list.html", {"compras": compras})
+    ).filter(
+        items__sucursal_id__in=sucursal_ids,
+    ).distinct().annotate(oc_enviada=Exists(oc_enviada_sub))
 
+    compras_por_proveedor = []
+    compras_list = sorted(
+        list(compras),
+        key=lambda compra: (str(compra.proveedor or "").lower(), compra.fecha_emision, compra.compra_id),
+    )
+    for compra in compras_list:
+        if not compras_por_proveedor or compras_por_proveedor[-1]["proveedor"] != compra.proveedor:
+            compras_por_proveedor.append({
+                "proveedor": compra.proveedor,
+                "compras": [],
+            })
+        compras_por_proveedor[-1]["compras"].append(compra)
+
+    return render(
+        request,
+        "compras_app/compras_list.html",
+        {
+            "compras": compras,
+            "compras_por_proveedor": compras_por_proveedor,
+        },
+    )
+
+
+@login_sucursal_required
 def compra_detail(request, pk):
+    sucursal_ids = _sucursal_ids_request(request)
     compra = get_object_or_404(
         Compra.objects.select_related(
             "tipo_documento", "estado_documento", "proveedor", "razon_social", "moneda"
-        ).prefetch_related(
+        ).filter(
+            items__sucursal_id__in=sucursal_ids,
+        ).distinct().prefetch_related(
             "historial",
-            "items__producto",
+            Prefetch(
+                "items",
+                queryset=CompraItem.objects.filter(sucursal_id__in=sucursal_ids).select_related("producto", "sucursal"),
+            ),
         ),
         pk=pk,
     )
@@ -71,7 +121,9 @@ def compra_detail(request, pk):
 
 
 @transaction.atomic
+@login_sucursal_required
 def compra_create(request):
+    form_sucursal_kwargs = _form_sucursal_kwargs(request)
     if request.method == "POST":
         form = CompraForm(request.POST, request.FILES)
 
@@ -85,7 +137,7 @@ def compra_create(request):
         formset = CompraItemFormSet(
             request.POST,
             instance=compra_tmp,
-            form_kwargs={"proveedor": proveedor_id},
+            form_kwargs={"proveedor": proveedor_id, **form_sucursal_kwargs},
         )
 
         formset_ok = formset.is_valid()
@@ -187,7 +239,7 @@ def compra_create(request):
         })
 
     form = CompraForm()
-    formset = CompraItemFormSet(form_kwargs={"proveedor": None})
+    formset = CompraItemFormSet(form_kwargs={"proveedor": None, **form_sucursal_kwargs})
 
     return render(request, "compras_app/compra_form.html", {
         "form": form,
@@ -197,12 +249,17 @@ def compra_create(request):
         "monedas": list(Moneda.objects.values("moneda_id", "codigo")),
     })
 
-class CompraUpdateView(UpdateView):
+class CompraUpdateView(SucursalAccessMixin, UpdateView):
     model = Compra
     form_class = CompraForm
     template_name = "compras_app/compra_form.html"
     pk_url_kwarg = "pk"
     context_object_name = "compra"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            items__sucursal_id__in=_sucursal_ids_request(self.request),
+        ).distinct()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -215,12 +272,14 @@ class CompraUpdateView(UpdateView):
                 ctx["formset"] = CompraItemFormSet(
                     self.request.POST,
                     instance=compra,
-                    form_kwargs={"proveedor": proveedor_id},
+                    queryset=CompraItem.objects.filter(sucursal_id__in=_sucursal_ids_request(self.request)),
+                    form_kwargs={"proveedor": proveedor_id, **_form_sucursal_kwargs(self.request)},
                 )
             else:
                 ctx["formset"] = CompraItemFormSet(
                     instance=compra,
-                    form_kwargs={"proveedor": compra.proveedor_id},
+                    queryset=CompraItem.objects.filter(sucursal_id__in=_sucursal_ids_request(self.request)),
+                    form_kwargs={"proveedor": compra.proveedor_id, **_form_sucursal_kwargs(self.request)},
                 )
 
         ctx["is_edit"] = True
@@ -333,8 +392,11 @@ class CompraUpdateView(UpdateView):
 compra_update = CompraUpdateView.as_view()
 
 # ----------- Distribución interna ------------
+@login_sucursal_required
 def facturas_ic_frontend(request):
-    facturas = FacturaIntercompany.objects.all()
+    facturas = FacturaIntercompany.objects.filter(
+        items__compra_item__sucursal_id__in=_sucursal_ids_request(request),
+    ).distinct()
     return render(
         request,
         "compras_app/facturas_ic_list.html",
@@ -342,9 +404,11 @@ def facturas_ic_frontend(request):
     )
 
 @transaction.atomic
+@login_sucursal_required
 def factura_ic_create(request):
+    form_sucursal_kwargs = _form_sucursal_kwargs(request)
     if request.method == "POST":
-        form = FacturaIntercompanyForm(request.POST)
+        form = FacturaIntercompanyForm(request.POST, **form_sucursal_kwargs)
         form_ok = form.is_valid()
 
         compra_id = request.POST.get("compra_origen") or None
@@ -355,7 +419,7 @@ def factura_ic_create(request):
         formset = FacturaIntercompanyItemFormSet(
             request.POST,
             instance=factura_tmp,
-            form_kwargs={"compra_origen": compra_id},
+            form_kwargs={"compra_origen": compra_id, **form_sucursal_kwargs},
         )
         formset_ok = formset.is_valid()
 
@@ -382,8 +446,13 @@ def factura_ic_create(request):
             "is_edit": False,
         })
 
-    form = FacturaIntercompanyForm(initial={"recargo_porcentaje": Decimal("5.00")})
-    formset = FacturaIntercompanyItemFormSet(form_kwargs={"compra_origen": None})
+    form = FacturaIntercompanyForm(
+        initial={"recargo_porcentaje": Decimal("5.00")},
+        **form_sucursal_kwargs,
+    )
+    formset = FacturaIntercompanyItemFormSet(
+        form_kwargs={"compra_origen": None, **form_sucursal_kwargs},
+    )
 
     return render(request, "compras_app/factura_ic_form.html", {
         "form": form,
@@ -391,7 +460,9 @@ def factura_ic_create(request):
         "is_edit": False,
     })
 
+@login_sucursal_required
 def factura_ic_detail(request, pk):
+    sucursal_ids = _sucursal_ids_request(request)
     factura = get_object_or_404(
         FacturaIntercompany.objects.select_related(
             "empresa_emisora",
@@ -399,20 +470,34 @@ def factura_ic_detail(request, pk):
             "compra_origen",
             "moneda",
         ).prefetch_related(
-            "items",
-            "items__compra_item__producto",
-        ),
+            Prefetch(
+                "items",
+                queryset=FacturaIntercompanyItem.objects.filter(
+                    compra_item__sucursal_id__in=sucursal_ids,
+                ).select_related("compra_item__producto"),
+            ),
+        ).filter(items__compra_item__sucursal_id__in=sucursal_ids).distinct(),
         pk=pk,
     )
     return render(request, "compras_app/factura_ic_detail.html", {"factura": factura})
 
 
-class FacturaICUpdateView(UpdateView):
+class FacturaICUpdateView(SucursalAccessMixin, UpdateView):
     model = FacturaIntercompany
     form_class = FacturaIntercompanyForm
     template_name = "compras_app/factura_ic_form.html"
     pk_url_kwarg = "pk"
     context_object_name = "factura"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            items__compra_item__sucursal_id__in=_sucursal_ids_request(self.request),
+        ).distinct()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update(_form_sucursal_kwargs(self.request))
+        return kwargs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -426,12 +511,12 @@ class FacturaICUpdateView(UpdateView):
                 ctx["formset"] = FacturaIntercompanyItemFormSet(
                     self.request.POST,
                     instance=factura,
-                    form_kwargs={"compra_origen": compra_id},
+                    form_kwargs={"compra_origen": compra_id, **_form_sucursal_kwargs(self.request)},
                 )
             else:
                 ctx["formset"] = FacturaIntercompanyItemFormSet(
                     instance=factura,
-                    form_kwargs={"compra_origen": factura.compra_origen_id},
+                    form_kwargs={"compra_origen": factura.compra_origen_id, **_form_sucursal_kwargs(self.request)},
                 )
 
         ctx["is_edit"] = True
@@ -520,11 +605,15 @@ def enviar_correo_oc(compra):
     )
 
 
+@login_sucursal_required
 def enviar_oc(request, pk):
     if request.method != "POST":
         return redirect("compra_detail", pk=pk)
 
-    compra = get_object_or_404(Compra, pk=pk)
+    compra = get_object_or_404(
+        Compra.objects.filter(items__sucursal_id__in=_sucursal_ids_request(request)).distinct(),
+        pk=pk,
+    )
     estado_espera = EstadoDocumento.objects.get(nombre="En espera")
     compra.estado = estado_espera
     compra.save()
@@ -534,11 +623,15 @@ def enviar_oc(request, pk):
     return redirect("compra_detail", pk=pk)
 
 
+@login_sucursal_required
 def aprobar_oc(request, pk):
     if request.method != "POST":
         return JsonResponse({"ok": False}, status=405)
 
-    compra = get_object_or_404(Compra, pk=pk)
+    compra = get_object_or_404(
+        Compra.objects.filter(items__sucursal_id__in=_sucursal_ids_request(request)).distinct(),
+        pk=pk,
+    )
     fecha_str = request.POST.get("fecha_aprobacion", "").strip()
 
     try:
@@ -564,8 +657,12 @@ def aprobar_oc(request, pk):
     return JsonResponse({"ok": True})
 
 
+@login_sucursal_required
 def cotizacion_upload(request, pk):
-    compra = get_object_or_404(Compra, pk=pk)
+    compra = get_object_or_404(
+        Compra.objects.filter(items__sucursal_id__in=_sucursal_ids_request(request)).distinct(),
+        pk=pk,
+    )
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
@@ -609,13 +706,20 @@ def cotizacion_upload(request, pk):
 # ----------- Factura Proveedor + Recepción ------------
 
 @transaction.atomic
+@login_sucursal_required
 def registrar_factura_recepcion(request, pk):
+    sucursal_ids = _sucursal_ids_request(request)
     compra = get_object_or_404(
         Compra.objects.select_related("proveedor", "razon_social", "moneda", "tipo_documento", "estado_documento")
+                      .filter(items__sucursal_id__in=sucursal_ids)
                       .prefetch_related(
-                          "items__producto__tipo_producto",
-                          "items__recepciones",
-                      ),
+                          Prefetch(
+                              "items",
+                              queryset=CompraItem.objects.filter(
+                                  sucursal_id__in=sucursal_ids,
+                              ).select_related("producto__tipo_producto").prefetch_related("recepciones"),
+                          ),
+                      ).distinct(),
         pk=pk,
     )
     items = list(compra.items.all())
@@ -715,11 +819,13 @@ def registrar_factura_recepcion(request, pk):
 
 # ----------- Proyectos TI ------------
 
+@login_sucursal_required
 def proyectos_list(request):
     proyectos = ProyectoInformatica.objects.all()
     return render(request, "compras_app/proyectos_list.html", {"proyectos": proyectos})
 
 
+@login_sucursal_required
 def proyecto_create(request):
     if request.method == "POST":
         form = ProyectoForm(request.POST)
@@ -731,6 +837,7 @@ def proyecto_create(request):
     return render(request, "compras_app/proyecto_form.html", {"form": form, "is_edit": False})
 
 
+@login_sucursal_required
 def proyecto_update(request, pk):
     proyecto = get_object_or_404(ProyectoInformatica, pk=pk)
     if request.method == "POST":
@@ -743,6 +850,7 @@ def proyecto_update(request, pk):
     return render(request, "compras_app/proyecto_form.html", {"form": form, "is_edit": True, "proyecto": proyecto})
 
 
+@login_sucursal_required
 def proyecto_delete(request, pk):
     if request.method == "POST":
         proyecto = get_object_or_404(ProyectoInformatica, pk=pk)

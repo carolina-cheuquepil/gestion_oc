@@ -66,6 +66,15 @@ body {
   letter-spacing: .025em;
 }
 
+.header-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255,255,255,.9);
+  font-size: .875rem;
+  font-weight: 500;
+}
+
 .header-accent {
   height: 3px;
   background: linear-gradient(90deg, #3b82f6 0%, #6A5ACD 55%, #7AA21D 100%);

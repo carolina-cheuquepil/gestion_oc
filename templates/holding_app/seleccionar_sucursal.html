@@ -1,0 +1,32 @@
+{% extends "layouts/base.html" %}
+{% block title %}Seleccionar sucursal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-7 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h5 fw-bold mb-3">Seleccionar sucursal</h1>
+
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_sucursal">Sucursal</label>
+            <select class="form-select" id="id_sucursal" name="sucursal" required>
+              <option value="">Selecciona una sucursal</option>
+              {% if sucursales|length > 1 %}
+                <option value="todas">Todas las sucursales</option>
+              {% endif %}
+              {% for sucursal in sucursales %}
+                <option value="{{ sucursal.pk }}">{{ sucursal.nombre }} — {{ sucursal.empresa }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-primary" type="submit">Continuar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

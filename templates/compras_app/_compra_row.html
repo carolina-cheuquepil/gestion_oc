@@ -1,0 +1,39 @@
+<tr>
+  <td class="text-muted">{{ c.compra_id }}</td>
+  <td>{{ c.tipo_documento }}</td>
+  <td>{{ c.razon_social }}</td>
+  <td>{{ c.proveedor }}</td>
+  <td>{{ c.folio }}</td>
+  <td>{{ c.fecha_emision|date:"d-m-Y" }}</td>
+  <td>
+    {% with e=c.estado_documento %}
+      {% if e == "ACEPTADO" or e == "AUTORIZADO" %}
+        <span class="badge bg-success">{{ e }}</span>
+      {% elif e == "PENDIENTE" or e == "EN REVISION" %}
+        <span class="badge bg-warning text-dark">{{ e }}</span>
+      {% elif e == "RECHAZADO" or e == "ANULADO" %}
+        <span class="badge bg-danger">{{ e }}</span>
+      {% else %}
+        <span class="badge bg-secondary">{{ e }}</span>
+      {% endif %}
+    {% endwith %}
+  </td>
+  <td>
+    <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'compra_detail' c.compra_id %}">
+      <i class="bi bi-eye me-1"></i>Ver
+    </a>
+    <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'compra_update' c.compra_id %}">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    {% if c.oc_enviada and c.estado_documento.nombre != "Aprobado" %}
+      <button type="button"
+              class="btn btn-sm btn-outline-success aprobar-oc-btn"
+              data-pk="{{ c.compra_id }}"
+              data-folio="{{ c.folio|default:'SIN FOLIO' }}"
+              data-bs-toggle="modal"
+              data-bs-target="#modalAprobarOC">
+        <i class="bi bi-check-circle me-1"></i>Aprobar OC
+      </button>
+    {% endif %}
+  </td>
+</tr>

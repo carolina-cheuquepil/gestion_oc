@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingreso — Soporte Dimarsa</title>
+  <link rel="icon" href="{% static 'img/favicon.ico' %}?v=4">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+</head>
+<body class="bg-light">
+  <main class="container min-vh-100 d-flex align-items-center justify-content-center">
+    <div class="card border-0 shadow-sm" style="width:100%;max-width:420px;">
+      <div class="card-body p-4">
+        <div class="text-center mb-4">
+          <img src="{% static 'img/logo-dimarsa.svg' %}" alt="Dimarsa" style="height:44px;">
+          <h1 class="h5 fw-bold mt-3 mb-1">Ingreso al sistema</h1>
+        </div>
+
+        {% if error %}
+          <div class="alert alert-danger py-2">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_usuario">Usuario</label>
+            <input class="form-control" id="id_usuario" name="usuario" autocomplete="username" required autofocus>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="id_clave">Clave</label>
+            <input class="form-control" id="id_clave" type="password" name="clave" autocomplete="current-password" required>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Ingresar</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

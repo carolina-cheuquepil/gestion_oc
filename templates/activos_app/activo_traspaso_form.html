@@ -1,0 +1,110 @@
+{% extends "layouts/base.html" %}
+{% block title %}Traspasar activo fijo{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1 fw-bold text-dark">
+      <i class="bi bi-arrow-left-right me-2 text-primary"></i>Traspasar activo fijo
+    </h4>
+    <div class="text-muted" style="font-size:.85rem;">
+      {{ activo.codigo_inventario }} — {{ activo.nombre_activo }}
+    </div>
+  </div>
+  <a class="btn btn-link btn-sm text-secondary" href="{% url 'activos_list' %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+{% if errores %}
+<div class="alert alert-danger mb-3">
+  <strong><i class="bi bi-exclamation-triangle me-1"></i>No se pudo traspasar:</strong>
+  <ul class="mb-0 mt-1">
+    {% for e in errores %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <div class="text-muted fw-semibold mb-3" style="font-size:.78rem;text-transform:uppercase;">Activo</div>
+        <dl class="row mb-0">
+          <dt class="col-5">Producto</dt>
+          <dd class="col-7">{{ activo.producto }}</dd>
+
+          <dt class="col-5">Sucursal actual</dt>
+          <dd class="col-7">{{ activo.sucursal }}</dd>
+
+          <dt class="col-5">Empresa actual</dt>
+          <dd class="col-7">{{ activo.sucursal.empresa }}</dd>
+
+          <dt class="col-5">Valor base</dt>
+          <dd class="col-7">$ {{ activo.valor }}</dd>
+
+          <dt class="col-5">OC origen</dt>
+          <dd class="col-7">
+            {% if compra %}
+              OC {{ compra.folio|default:compra.pk }}
+            {% else %}
+              <span class="text-muted">Sin compra asociada</span>
+            {% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <form method="post" class="card border-0 shadow-sm">
+      {% csrf_token %}
+      <div class="card-body p-4">
+        <div class="text-muted fw-semibold mb-3" style="font-size:.78rem;text-transform:uppercase;">Destino y facturación</div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Sucursal destino <span class="text-danger">*</span></label>
+          <select name="sucursal_destino" class="form-select" required>
+            <option value="">Selecciona una sucursal</option>
+            {% for sucursal in sucursales %}
+              <option value="{{ sucursal.pk }}">
+                {{ sucursal.nombre }} — {{ sucursal.empresa }}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            Se generará una Factura Intercompany desde la empresa actual hacia la empresa de la sucursal destino.
+          </div>
+        </div>
+
+        {% if compra_item %}
+        <div class="alert alert-info py-2" style="font-size:.875rem;">
+          <i class="bi bi-receipt me-1"></i>
+          Se facturará 1 unidad del ítem de compra:
+          <strong>
+            {% if compra_item.producto %}
+              {{ compra_item.producto.producto_nombre }}
+            {% else %}
+              {{ compra_item.descripcion_libre|default:"Ítem" }}
+            {% endif %}
+          </strong>
+        </div>
+        {% else %}
+        <div class="alert alert-warning py-2" style="font-size:.875rem;">
+          Este activo no tiene recepción de compra asociada. No se puede generar la Factura Intercompany automáticamente.
+        </div>
+        {% endif %}
+
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          <button type="submit" class="btn btn-success px-4" {% if not compra_item %}disabled{% endif %}>
+            <i class="bi bi-check2-circle me-1"></i>Traspasar y facturar
+          </button>
+          <a class="btn btn-link btn-sm text-secondary" href="{% url 'activos_list' %}">Cancelar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

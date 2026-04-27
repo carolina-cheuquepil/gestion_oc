@@ -24,6 +24,7 @@
             <th class="text-end">Valor</th>
             <th>Estado</th>
             <th>OC origen</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -57,10 +58,15 @@
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'activo_traspasar' activo.pk %}">
+                <i class="bi bi-arrow-left-right me-1"></i>Traspasar
+              </a>
+            </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-5">
+            <td colspan="10" class="text-center text-muted py-5">
               No hay activos fijos registrados.
             </td>
           </tr>

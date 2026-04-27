@@ -1,0 +1,23 @@
+{% extends "layouts/base.html" %}
+{% block title %}Eliminar Empresa{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <h4 class="fw-bold mb-2">Eliminar empresa</h4>
+    <p class="text-muted mb-4">
+      Confirma la eliminación de <strong>{{ holding.nombre|default:holding.razon_social }}</strong>.
+    </p>
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Eliminar</button>
+      <a class="btn btn-outline-secondary" href="{% url 'holding_detail' holding.pk %}">Cancelar</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

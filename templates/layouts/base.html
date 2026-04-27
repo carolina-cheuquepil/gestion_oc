@@ -24,10 +24,24 @@
 
 <header class="header">
   <div class="header-inner">
-    <a href="/" class="text-decoration-none">
-      <img src="{% static 'img/logo-dimarsa.svg' %}" class="logo" alt="Dimarsa">
-    </a>
-    <span class="header-title">Soporte Dimarsa</span>
+    <div class="d-flex align-items-center gap-2">
+      <a href="/" class="text-decoration-none">
+        <img src="{% static 'img/logo-dimarsa.svg' %}" class="logo" alt="Dimarsa">
+      </a>
+      <span class="header-title">Soporte Dimarsa</span>
+    </div>
+    {% if usuario_actual_nombre %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="header-user">
+        <i class="bi bi-person-circle"></i>{{ usuario_actual_nombre }}
+      </span>
+      {% if sucursal_actual_nombre %}
+        <span class="badge text-bg-light border">{{ sucursal_actual_nombre }}</span>
+        <a class="btn btn-sm btn-outline-light" href="{% url 'seleccionar_sucursal' %}">Cambiar</a>
+      {% endif %}
+      <a class="btn btn-sm btn-outline-light" href="{% url 'logout' %}">Salir</a>
+    </div>
+    {% endif %}
   </div>
   <div class="header-accent"></div>
 </header>
@@ -64,6 +78,11 @@
   </aside>
 
   <main class="content">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} py-2">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 </div>

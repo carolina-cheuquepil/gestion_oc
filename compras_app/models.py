@@ -180,7 +180,7 @@ class CompraItem(models.Model):
     descripcion_libre = models.CharField(max_length=255, null=True, blank=True)
 
     sucursal = models.ForeignKey(
-        "activos_app.Sucursal",
+        "holding_app.Sucursal",
         on_delete=models.PROTECT,
         db_column="sucursal_id",
         related_name="compra_items",

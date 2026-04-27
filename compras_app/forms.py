@@ -67,13 +67,23 @@ class CompraItemForm(forms.ModelForm):
             "descuento_porcentaje": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
         }
 
-    def __init__(self, *args, proveedor=None, **kwargs):
+    def __init__(self, *args, proveedor=None, sucursal_id=None, sucursal_ids=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         if proveedor:
             self.fields["producto"].queryset = Producto.objects.filter(
                 proveedor_productos__proveedor=proveedor
             ).distinct()
+
+        if sucursal_ids is not None:
+            self.fields["sucursal"].queryset = self.fields["sucursal"].queryset.filter(
+                pk__in=sucursal_ids
+            )
+        elif sucursal_id:
+            self.fields["sucursal"].queryset = self.fields["sucursal"].queryset.filter(
+                pk=sucursal_id
+            )
+            self.fields["sucursal"].initial = sucursal_id
 
     def clean(self):
         cleaned = super().clean()
@@ -143,6 +153,17 @@ class FacturaIntercompanyForm(forms.ModelForm):
             "total": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
         }
 
+    def __init__(self, *args, sucursal_id=None, sucursal_ids=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if sucursal_ids is not None:
+            self.fields["compra_origen"].queryset = self.fields["compra_origen"].queryset.filter(
+                items__sucursal_id__in=sucursal_ids,
+            ).distinct()
+        elif sucursal_id:
+            self.fields["compra_origen"].queryset = self.fields["compra_origen"].queryset.filter(
+                items__sucursal_id=sucursal_id,
+            ).distinct()
+
     def clean(self):
         cleaned = super().clean()
         emisora = cleaned.get("empresa_emisora")
@@ -171,7 +192,7 @@ class FacturaIntercompanyItemForm(forms.ModelForm):
             "afecta_iva": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
-    def __init__(self, *args, compra_origen=None, **kwargs):
+    def __init__(self, *args, compra_origen=None, sucursal_id=None, sucursal_ids=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         if compra_origen:
@@ -179,6 +200,15 @@ class FacturaIntercompanyItemForm(forms.ModelForm):
             self.fields["compra_item"].queryset = CompraItem.objects.filter(
                 compra_id=compra_id
             ).select_related("producto").order_by("nro_linea")
+
+        if sucursal_ids is not None:
+            self.fields["compra_item"].queryset = self.fields["compra_item"].queryset.filter(
+                sucursal_id__in=sucursal_ids,
+            )
+        elif sucursal_id:
+            self.fields["compra_item"].queryset = self.fields["compra_item"].queryset.filter(
+                sucursal_id=sucursal_id,
+            )
 
     def clean(self):
         cleaned = super().clean()

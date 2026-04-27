@@ -1,27 +1,6 @@
 from django.db import models
 
 
-class Sucursal(models.Model):
-    sucursal_id = models.AutoField(primary_key=True)
-    empresa = models.ForeignKey(
-        "holding_app.Holding",
-        on_delete=models.CASCADE,
-        db_column="empresa_id",
-        related_name="sucursales",
-    )
-    codigo_sucursal = models.CharField(max_length=20, unique=True)
-    nombre = models.CharField(max_length=255)
-    activa = models.BooleanField(default=True, null=True)
-
-    class Meta:
-        db_table = "sucursal"
-        managed = False
-        ordering = ["nombre"]
-
-    def __str__(self):
-        return self.nombre
-
-
 class RecepcionCompraItem(models.Model):
     recepcion_compra_item_id = models.AutoField(primary_key=True)
 
@@ -55,7 +34,7 @@ class ActivoFijo(models.Model):
     )
 
     sucursal = models.ForeignKey(
-        "Sucursal",
+        "holding_app.Sucursal",
         on_delete=models.PROTECT,
         db_column="sucursal_id",
         related_name="activos_fijos",

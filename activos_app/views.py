@@ -1,26 +1,135 @@
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import transaction
 from decimal import Decimal
 from datetime import date as date_cls
-from .models import RecepcionCompraItem, ActivoFijo, Sucursal
+from holding_app.models import Sucursal
+from holding_app.access import login_sucursal_required, sucursal_actual_id
+from .models import RecepcionCompraItem, ActivoFijo
 
 
+@login_sucursal_required
 def activos_fijos_list(request):
     activos = ActivoFijo.objects.select_related(
-        "producto", "sucursal", "recepcion_compra_item__compra_item__compra"
+        "producto",
+        "sucursal__empresa",
+        "recepcion_compra_item__compra_item__compra",
+    ).filter(
+        sucursal_id=sucursal_actual_id(request),
     ).order_by("sucursal__nombre", "nombre_activo")
     return render(request, "activos_app/activos_list.html", {"activos": activos})
 
 ESTADOS_ACTIVO = ["En bodega", "En uso", "En reparación", "Dado de baja"]
 
 
+def _folio_factura_ic_activo(activo):
+    return f"IC-AF-{activo.activo_fijo_id}-{date_cls.today().strftime('%Y%m%d')}"
+
+
 @transaction.atomic
+@login_sucursal_required
+def traspasar_activo_fijo(request, activo_pk):
+    from compras_app.models import FacturaIntercompany, FacturaIntercompanyItem
+
+    activo = get_object_or_404(
+        ActivoFijo.objects.select_related(
+            "producto",
+            "sucursal__empresa",
+            "recepcion_compra_item__compra_item__compra__moneda",
+        ),
+        pk=activo_pk,
+        sucursal_id=sucursal_actual_id(request),
+    )
+
+    compra_item = None
+    compra = None
+    if activo.recepcion_compra_item_id:
+        compra_item = activo.recepcion_compra_item.compra_item
+        compra = compra_item.compra
+
+    sucursales = Sucursal.objects.select_related("empresa").filter(
+        activa=True,
+        usuario_sucursales__usuario_id=request.session.get("usuario_id"),
+    ).exclude(pk=activo.sucursal_id)
+    errores = []
+
+    if request.method == "POST":
+        sucursal_destino_id = request.POST.get("sucursal_destino")
+        sucursal_destino = Sucursal.objects.select_related("empresa").filter(
+            pk=sucursal_destino_id,
+            activa=True,
+        ).first()
+
+        if not sucursal_destino:
+            errores.append("Selecciona una sucursal destino activa.")
+        elif sucursal_destino.pk == activo.sucursal_id:
+            errores.append("La sucursal destino debe ser distinta a la sucursal actual.")
+        elif sucursal_destino.empresa_id == activo.sucursal.empresa_id:
+            errores.append(
+                "Para facturación intercompany, la sucursal destino debe pertenecer a otra empresa."
+            )
+
+        if not compra_item or not compra:
+            errores.append(
+                "Este activo no tiene una recepción de compra asociada para generar factura intercompany."
+            )
+
+        if not errores:
+            factura = FacturaIntercompany.objects.create(
+                empresa_emisora=activo.sucursal.empresa,
+                empresa_receptora=sucursal_destino.empresa,
+                compra_origen=compra,
+                folio=_folio_factura_ic_activo(activo),
+                fecha_emision=date_cls.today(),
+                moneda=compra.moneda,
+                recargo_porcentaje=Decimal("5.00"),
+            )
+
+            try:
+                FacturaIntercompanyItem.objects.create(
+                    factura_ic=factura,
+                    compra_item=compra_item,
+                    cantidad=Decimal("1.000"),
+                    precio_base=activo.valor or compra_item.precio_unitario or Decimal("0.00"),
+                    afecta_iva=compra_item.afecta_iva,
+                    iva_porcentaje=compra_item.iva_porcentaje,
+                )
+            except ValidationError as exc:
+                factura.delete()
+                if hasattr(exc, "message_dict"):
+                    for msgs in exc.message_dict.values():
+                        errores.extend(msgs)
+                else:
+                    errores.extend(exc.messages)
+
+            if not errores:
+                activo.sucursal = sucursal_destino
+                activo.estado = "En uso" if activo.estado == "En bodega" else activo.estado
+                activo.observacion = (
+                    f"{activo.observacion or ''}\n"
+                    f"Traspaso a {sucursal_destino.nombre}; Factura IC {factura.folio}."
+                ).strip()
+                activo.save(update_fields=["sucursal", "estado", "observacion"])
+                return redirect("factura_ic_detail", pk=factura.pk)
+
+    return render(request, "activos_app/activo_traspaso_form.html", {
+        "activo": activo,
+        "compra_item": compra_item,
+        "compra": compra,
+        "sucursales": sucursales,
+        "errores": errores,
+    })
+
+
+@transaction.atomic
+@login_sucursal_required
 def registrar_activos_fijos(request, compra_pk):
     from compras_app.models import Compra
 
     compra = get_object_or_404(
         Compra.objects.select_related("razon_social", "proveedor"),
         pk=compra_pk,
+        items__sucursal_id=sucursal_actual_id(request),
     )
 
     recp_param = request.GET.get("recp", "") or request.POST.get("recp", "")
@@ -31,6 +140,7 @@ def registrar_activos_fijos(request, compra_pk):
 
     recepciones = RecepcionCompraItem.objects.filter(
         recepcion_compra_item_id__in=recp_ids,
+        compra_item__sucursal_id=sucursal_actual_id(request),
     ).select_related(
         "compra_item__producto__tipo_producto",
         "compra_item__sucursal",
