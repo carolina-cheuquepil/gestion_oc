@@ -30,7 +30,7 @@ class CompraForm(forms.ModelForm):
         widgets = {
             "tipo_oc": forms.Select(attrs={"class": "form-select", "id": "id_tipo_oc"}),
             "razon_social": HoldingWidget(attrs={"class": "form-control", "style": "width: 100%;", "data-placeholder": "Buscar por nombre o código..."}),
-            "proveedor": ProveedorWidget(attrs={"class": "form-control", "style": "width: 100%;", "data-placeholder": "Ingresa el RUT para buscar..."}),
+            "proveedor": ProveedorWidget(attrs={"class": "form-control", "style": "width: 100%;", "data-placeholder": "Buscar por RUT o razón social..."}),
             "fecha_emision": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "fecha_requerida": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "observacion": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),

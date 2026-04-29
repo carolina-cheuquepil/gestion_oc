@@ -3,6 +3,7 @@ from .views import (
     HoldingViewSet,
     PerfilViewSet,
     SucursalViewSet,
+    SucursalTelefonoViewSet,
     UsuarioViewSet,
     holding_buscar_codigo,
     holding_create,
@@ -23,6 +24,7 @@ router = DefaultRouter()
 router.register(r"holdings", HoldingViewSet, basename="holding")
 router.register(r"perfiles", PerfilViewSet, basename="perfil")
 router.register(r"sucursales", SucursalViewSet, basename="sucursal")
+router.register(r"sucursal-telefonos", SucursalTelefonoViewSet, basename="sucursal-telefono")
 router.register(r"usuarios", UsuarioViewSet, basename="usuario")
 
 urlpatterns = [

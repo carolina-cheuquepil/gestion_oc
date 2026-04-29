@@ -42,6 +42,66 @@
       </div>
     {% endfor %}
 
+    <hr class="my-4">
+    <h5 class="mb-3">Telefonos</h5>
+
+    {{ telefono_formset.management_form }}
+    {% if telefono_formset.non_form_errors %}
+      <div class="alert alert-danger">{{ telefono_formset.non_form_errors }}</div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Numero</th>
+            <th class="text-center">Principal</th>
+            <th class="text-center">Eliminar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for telefono_form in telefono_formset %}
+            <tr>
+              <td>
+                {% for hidden in telefono_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {{ telefono_form.tipo_telefono }}
+                {% if telefono_form.tipo_telefono.errors %}
+                  <div class="invalid-feedback d-block">{{ telefono_form.tipo_telefono.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ telefono_form.numero }}
+                {% if telefono_form.numero.errors %}
+                  <div class="invalid-feedback d-block">{{ telefono_form.numero.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {{ telefono_form.principal }}
+                {% if telefono_form.principal.errors %}
+                  <div class="invalid-feedback d-block">{{ telefono_form.principal.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if telefono_form.instance.pk %}
+                  {{ telefono_form.DELETE }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% if telefono_form.non_field_errors %}
+              <tr>
+                <td colspan="4">
+                  <div class="invalid-feedback d-block">{{ telefono_form.non_field_errors }}</div>
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
     <div class="row mt-4">
       <div class="col-sm-9 offset-sm-3">
         <button class="btn btn-primary px-5" type="submit">Guardar</button>

@@ -18,10 +18,10 @@ from .access import (
     set_todas_sucursales_session,
     sucursales_usuario,
 )
-from .models import Direccion, Holding, Perfil, Sucursal, Usuario, UsuarioSucursal
-from .serializers import HoldingSerializer, PerfilSerializer, SucursalSerializer, UsuarioSerializer
+from .models import Direccion, Holding, Perfil, Sucursal, SucursalTelefono, Usuario, UsuarioSucursal
+from .serializers import HoldingSerializer, PerfilSerializer, SucursalSerializer, SucursalTelefonoSerializer, UsuarioSerializer
 from rest_framework.viewsets import ModelViewSet
-from .forms import DireccionForm, HoldingForm, SucursalForm
+from .forms import DireccionForm, HoldingForm, SucursalForm, SucursalTelefonoFormSet
 
 class HoldingViewSet(ModelViewSet):
     queryset = Holding.objects.all()
@@ -36,6 +36,11 @@ class PerfilViewSet(ModelViewSet):
 class SucursalViewSet(ModelViewSet):
     queryset = Sucursal.objects.select_related("empresa", "direccion").all()
     serializer_class = SucursalSerializer
+
+
+class SucursalTelefonoViewSet(ModelViewSet):
+    queryset = SucursalTelefono.objects.select_related("sucursal", "sucursal__empresa").all()
+    serializer_class = SucursalTelefonoSerializer
 
 
 class UsuarioViewSet(ModelViewSet):
@@ -189,8 +194,8 @@ def holding_detail(request, pk):
     )
     sucursales = (
         holding.sucursales
-        .select_related("direccion")
         .prefetch_related(
+            "telefonos",
             Prefetch(
                 "usuario_sucursales",
                 queryset=usuario_unico_sucursal,
@@ -227,10 +232,21 @@ def holding_delete(request, pk):
 
 def _save_sucursal_forms(request, holding, sucursal=None):
     direccion = sucursal.direccion if sucursal and sucursal.direccion_id else None
+    sucursal_instance = sucursal or Sucursal(empresa=holding)
     sucursal_form = SucursalForm(request.POST or None, instance=sucursal)
     direccion_form = DireccionForm(request.POST or None, instance=direccion)
+    telefono_formset = SucursalTelefonoFormSet(
+        request.POST or None,
+        instance=sucursal_instance,
+        prefix="telefonos",
+    )
 
-    if request.method == "POST" and sucursal_form.is_valid() and direccion_form.is_valid():
+    if (
+        request.method == "POST"
+        and sucursal_form.is_valid()
+        and direccion_form.is_valid()
+        and telefono_formset.is_valid()
+    ):
         with transaction.atomic():
             direccion_anterior = direccion
             nueva_direccion = direccion
@@ -244,18 +260,22 @@ def _save_sucursal_forms(request, holding, sucursal=None):
             sucursal_obj.direccion = nueva_direccion
             sucursal_obj.save()
 
+            telefono_formset.instance = sucursal_obj
+            telefono_formset.save()
+            _set_principal_unico(sucursal_obj)
+
             if direccion_anterior and not nueva_direccion and not direccion_anterior.sucursales.exists():
                 direccion_anterior.delete()
 
-            return sucursal_obj, sucursal_form, direccion_form
+            return sucursal_obj, sucursal_form, direccion_form, telefono_formset
 
-    return None, sucursal_form, direccion_form
+    return None, sucursal_form, direccion_form, telefono_formset
 
 
 @login_sucursal_required
 def sucursal_create(request, empresa_pk):
     holding = get_object_or_404(Holding, pk=empresa_pk)
-    sucursal, sucursal_form, direccion_form = _save_sucursal_forms(request, holding)
+    sucursal, sucursal_form, direccion_form, telefono_formset = _save_sucursal_forms(request, holding)
     if sucursal:
         return redirect("holding_detail", pk=holding.pk)
 
@@ -264,6 +284,7 @@ def sucursal_create(request, empresa_pk):
         "sucursal": None,
         "sucursal_form": sucursal_form,
         "direccion_form": direccion_form,
+        "telefono_formset": telefono_formset,
         "is_edit": False,
     })
 
@@ -272,7 +293,7 @@ def sucursal_create(request, empresa_pk):
 def sucursal_update(request, empresa_pk, pk):
     holding = get_object_or_404(Holding, pk=empresa_pk)
     sucursal_obj = get_object_or_404(Sucursal, pk=pk, empresa=holding)
-    sucursal, sucursal_form, direccion_form = _save_sucursal_forms(request, holding, sucursal_obj)
+    sucursal, sucursal_form, direccion_form, telefono_formset = _save_sucursal_forms(request, holding, sucursal_obj)
     if sucursal:
         return redirect("holding_detail", pk=holding.pk)
 
@@ -281,6 +302,7 @@ def sucursal_update(request, empresa_pk, pk):
         "sucursal": sucursal_obj,
         "sucursal_form": sucursal_form,
         "direccion_form": direccion_form,
+        "telefono_formset": telefono_formset,
         "is_edit": True,
     })
 
@@ -306,4 +328,15 @@ def sucursal_delete(request, empresa_pk, pk):
         "sucursal": sucursal,
         "error": error,
     })
+
+
+def _set_principal_unico(sucursal):
+    principal = (
+        SucursalTelefono.objects
+        .filter(sucursal=sucursal, principal=True)
+        .order_by("-sucursal_telefono_id")
+        .first()
+    )
+    if principal:
+        SucursalTelefono.objects.filter(sucursal=sucursal, principal=True).exclude(pk=principal.pk).update(principal=False)
 

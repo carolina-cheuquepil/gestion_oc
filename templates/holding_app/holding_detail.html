@@ -62,7 +62,7 @@
           <tr>
             <th>Código</th>
             <th>Nombre</th>
-            <th>Dirección</th>
+            <th>Telefono</th>
             <th>Usuario vinculado</th>
             <th class="text-center">Estado</th>
             <th></th>
@@ -74,11 +74,19 @@
             <td class="fw-semibold">{{ sucursal.codigo_sucursal }}</td>
             <td>{{ sucursal.nombre }}</td>
             <td>
-              {% if sucursal.direccion %}
-                {{ sucursal.direccion }}
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
+              {% for telefono in sucursal.telefonos.all %}
+                <div class="mb-1">
+                  {% if telefono.tipo_telefono %}
+                    <span class="text-muted">{{ telefono.tipo_telefono }}:</span>
+                  {% endif %}
+                  {{ telefono.numero }}
+                  {% if telefono.principal %}
+                    <span class="badge bg-primary">Principal</span>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <span class="text-muted">Sin telefono</span>
+              {% endfor %}
             </td>
             <td>
               {% for usuario_sucursal in sucursal.usuarios_unicos %}

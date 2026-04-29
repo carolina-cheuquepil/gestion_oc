@@ -1,6 +1,7 @@
 #FrontEnd: Paso 1
 from django import forms
-from .models import Direccion, Holding, Sucursal
+from django.forms import inlineformset_factory
+from .models import Direccion, Holding, Sucursal, SucursalTelefono
 from django_select2.forms import ModelSelect2Widget
 
 class HoldingForm(forms.ModelForm):
@@ -57,6 +58,32 @@ class DireccionForm(forms.ModelForm):
 
     def has_address_data(self):
         return any((self.cleaned_data.get(name) or "").strip() for name in self.fields)
+
+
+class SucursalTelefonoForm(forms.ModelForm):
+    class Meta:
+        model = SucursalTelefono
+        fields = ["tipo_telefono", "numero", "principal"]
+        labels = {
+            "tipo_telefono": "Tipo de telefono",
+            "numero": "Numero",
+            "principal": "Principal",
+        }
+        widgets = {
+            "tipo_telefono": forms.TextInput(attrs={"class": "form-control", "placeholder": "Fijo, WhatsApp, central..."}),
+            "numero": forms.TextInput(attrs={"class": "form-control"}),
+            "principal": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
+SucursalTelefonoFormSet = inlineformset_factory(
+    Sucursal,
+    SucursalTelefono,
+    form=SucursalTelefonoForm,
+    extra=1,
+    can_delete=True,
+)
+
 
 class HoldingWidget(ModelSelect2Widget):
     model = Holding

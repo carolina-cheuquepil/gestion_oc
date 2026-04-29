@@ -70,6 +70,29 @@ class Sucursal(models.Model):
         return self.nombre
 
 
+class SucursalTelefono(models.Model):
+    sucursal_telefono_id = models.AutoField(primary_key=True)
+    sucursal = models.ForeignKey(
+        Sucursal,
+        on_delete=models.CASCADE,
+        db_column="sucursal_id",
+        related_name="telefonos",
+    )
+    tipo_telefono = models.CharField(max_length=30, blank=True, null=True)
+    numero = models.CharField(max_length=20)
+    principal = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = "sucursal_telefono"
+        ordering = ["-principal", "tipo_telefono", "numero"]
+
+    def __str__(self):
+        tipo = f"{self.tipo_telefono}: " if self.tipo_telefono else ""
+        principal = " (principal)" if self.principal else ""
+        return f"{tipo}{self.numero}{principal}"
+
+
 class Perfil(models.Model):
     perfil_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=50, blank=True, null=True)

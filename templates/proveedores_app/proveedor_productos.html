@@ -6,7 +6,7 @@
   <h1 class="page-title">Productos de {{ proveedor.nombre }}</h1>
   <div class="d-flex gap-2">
     <a class="btn btn-primary"
-       href="{% url 'producto-nuevo' %}?proveedor_id={{ proveedor.proveedor_id }}">
+       href="{% url 'proveedor-producto-nuevo' proveedor.pk %}">
       <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
     </a>
     <a class="btn btn-outline-secondary" href="{% url 'proveedores-lista' %}">
@@ -20,22 +20,37 @@
     <thead>
       <tr>
         <th>ID</th>
+        <th>SKU</th>
         <th>Producto</th>
+        <th>Tipo</th>
+        <th>Marca</th>
         <th>Descripción</th>
         <th>UOM</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for p in productos %}
       <tr>
         <td class="text-muted">{{ p.producto.producto_id }}</td>
+        <td><span class="badge bg-secondary fw-normal">{{ p.producto.sku }}</span></td>
         <td>{{ p.producto.producto_nombre }}</td>
+        <td>{{ p.producto.tipo_producto|default:"—" }}</td>
+        <td>{{ p.producto.marca|default:"—" }}</td>
         <td class="text-muted">{{ p.producto.descripcion|truncatechars:60 }}</td>
         <td>{{ p.producto.uom }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'proveedor-producto-editar' proveedor.pk p.producto.pk %}">
+            <i class="bi bi-pencil me-1"></i>Editar
+          </a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'proveedor-producto-eliminar' proveedor.pk p.producto.pk %}">
+            <i class="bi bi-trash me-1"></i>Eliminar
+          </a>
+        </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="4" class="text-center text-muted py-4">Sin productos registrados para este proveedor.</td>
+        <td colspan="8" class="text-center text-muted py-4">Sin productos registrados para este proveedor.</td>
       </tr>
       {% endfor %}
     </tbody>

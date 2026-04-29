@@ -1,11 +1,13 @@
 from django import forms
+from django.db.models import Q, CharField
+from django.db.models.functions import Cast
 from django_select2.forms import ModelSelect2Widget
 from .models import Proveedor, Producto, ProveedorProducto
 
 
 class ProveedorWidget(ModelSelect2Widget):
     model = Proveedor
-    search_fields = ["rut_numero__icontains"]  # requerido por django-select2; la búsqueda real se hace en filter_queryset
+    search_fields = ["rut_numero__icontains", "razon_social__icontains"]  # requerido por django-select2; la búsqueda real se hace en filter_queryset
 
     def label_from_instance(self, obj):
         return obj.razon_social
@@ -13,16 +15,18 @@ class ProveedorWidget(ModelSelect2Widget):
     def filter_queryset(self, request, term, queryset=None, **dependent_fields):
         if queryset is None:
             queryset = self.get_queryset()
-        digits = "".join(c for c in (term or "") if c.isdigit())
+        term = (term or "").strip()
+        if not term:
+            return queryset.none()
+
+        queryset = queryset.annotate(rut_str=Cast("rut_numero", output_field=CharField()))
+        filtros = Q(razon_social__icontains=term)
+
+        digits = "".join(c for c in term if c.isdigit())
         if digits:
-            from django.db.models.functions import Cast
-            from django.db.models import CharField
-            return (
-                queryset
-                .annotate(rut_str=Cast("rut_numero", output_field=CharField()))
-                .filter(rut_str__startswith=digits)
-            )
-        return queryset.none()
+            filtros |= Q(rut_str__startswith=digits)
+
+        return queryset.filter(filtros).distinct()
 
 
 class ProveedorForm(forms.ModelForm):
@@ -67,5 +71,4 @@ class ProveedorProductoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.initial.get("proveedor"):
             self.fields["proveedor"].disabled = True
-
 

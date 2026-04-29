@@ -3,7 +3,8 @@ from .models import Proveedor, Producto, ProveedorProducto
 from .serializers import ProveedorSerializer, ProductoSerializer
 from .forms import ProveedorForm, ProductoForm, ProveedorProductoForm
 from rest_framework.viewsets import ModelViewSet
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.http import JsonResponse
 
 
@@ -99,6 +100,8 @@ def producto_create(request):
                 if proveedor:
                     rel.proveedor = proveedor
                 rel.save()
+            if proveedor:
+                return redirect("proveedor-productos", pk=proveedor.pk)
             return redirect("productos-lista")
     else:
         form = ProductoForm()
@@ -139,9 +142,97 @@ def producto_update(request, pk):
     })
 
 
+def proveedor_producto_create(request, proveedor_pk):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_pk)
+
+    if request.method == "POST":
+        form = ProductoForm(request.POST)
+        rel_form = ProveedorProductoForm(request.POST, initial={"proveedor": proveedor})
+        if form.is_valid() and rel_form.is_valid():
+            with transaction.atomic():
+                producto = form.save()
+                ProveedorProducto.objects.create(proveedor=proveedor, producto=producto)
+            return redirect("proveedor-productos", pk=proveedor.pk)
+    else:
+        form = ProductoForm()
+        rel_form = ProveedorProductoForm(initial={"proveedor": proveedor})
+
+    return render(request, "proveedores_app/producto_form.html", {
+        "form": form,
+        "rel_form": rel_form,
+        "is_edit": False,
+        "proveedor_fijado": True,
+        "proveedor": proveedor,
+    })
+
+
+def proveedor_producto_update(request, proveedor_pk, pk):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_pk)
+    relacion = get_object_or_404(
+        ProveedorProducto.objects.select_related("producto", "proveedor"),
+        proveedor=proveedor,
+        producto_id=pk,
+    )
+    producto = relacion.producto
+
+    if request.method == "POST":
+        form = ProductoForm(request.POST, instance=producto)
+        rel_form = ProveedorProductoForm(request.POST, instance=relacion, initial={"proveedor": proveedor})
+        if form.is_valid() and rel_form.is_valid():
+            with transaction.atomic():
+                form.save()
+                relacion.proveedor = proveedor
+                relacion.save()
+            return redirect("proveedor-productos", pk=proveedor.pk)
+    else:
+        form = ProductoForm(instance=producto)
+        rel_form = ProveedorProductoForm(instance=relacion, initial={"proveedor": proveedor})
+
+    return render(request, "proveedores_app/producto_form.html", {
+        "form": form,
+        "rel_form": rel_form,
+        "producto": producto,
+        "is_edit": True,
+        "proveedor_fijado": True,
+        "proveedor": proveedor,
+    })
+
+
+def proveedor_producto_delete(request, proveedor_pk, pk):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_pk)
+    relacion = get_object_or_404(
+        ProveedorProducto.objects.select_related("producto", "proveedor"),
+        proveedor=proveedor,
+        producto_id=pk,
+    )
+    producto = relacion.producto
+    error = None
+
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+                relacion.delete()
+                if not producto.proveedor_productos.exists():
+                    producto.delete()
+            return redirect("proveedor-productos", pk=proveedor.pk)
+        except (ProtectedError, IntegrityError):
+            error = "No se puede eliminar el producto porque tiene compras u otros registros asociados."
+
+    return render(request, "proveedores_app/producto_confirm_delete.html", {
+        "proveedor": proveedor,
+        "producto": producto,
+        "error": error,
+    })
+
+
 def proveedor_productos(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
-    productos = ProveedorProducto.objects.select_related("producto").filter(proveedor=proveedor)
+    productos = ProveedorProducto.objects.select_related(
+        "producto",
+        "producto__tipo_producto",
+        "producto__marca",
+        "producto__uom",
+    ).filter(proveedor=proveedor)
     return render(
         request,
         "proveedores_app/proveedor_productos.html",
@@ -205,5 +296,4 @@ def productos_por_proveedor(request, proveedor_id):
         proveedor_productos__proveedor_id=proveedor_id
     ).distinct().values("producto_id", "producto_nombre", "sku", "descripcion", "uom", "tipo_producto_id", "tipo_producto__nombre")
     return JsonResponse(list(productos), safe=False)
-
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Perfil, Sucursal, Usuario
+from .models import Perfil, Sucursal, SucursalTelefono, Usuario
 
 
 @admin.register(Sucursal)
@@ -7,6 +7,14 @@ class SucursalAdmin(admin.ModelAdmin):
     list_display = ("sucursal_id", "codigo_sucursal", "nombre", "empresa", "activa")
     list_filter = ("empresa", "activa")
     search_fields = ("codigo_sucursal", "nombre", "empresa__razon_social", "empresa__nombre")
+
+
+@admin.register(SucursalTelefono)
+class SucursalTelefonoAdmin(admin.ModelAdmin):
+    list_display = ("sucursal_telefono_id", "sucursal", "tipo_telefono", "numero", "principal")
+    list_filter = ("principal", "tipo_telefono")
+    search_fields = ("numero", "tipo_telefono", "sucursal__nombre", "sucursal__codigo_sucursal")
+
 
 @admin.register(Perfil)
 class PerfilAdmin(admin.ModelAdmin):
