@@ -22,6 +22,54 @@ class Proveedor(models.Model):
         return self.nombre
 
 
+class Contacto(models.Model):
+    contacto_id = models.IntegerField(primary_key=True)
+    nombres = models.CharField(max_length=80)
+    apellidos = models.CharField(max_length=100)
+    email = models.CharField(max_length=120, blank=True, null=True)
+    celular = models.CharField(max_length=20, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = "contacto"
+
+    def __str__(self):
+        return f"{self.nombres} {self.apellidos}".strip()
+
+
+class ProveedorContacto(models.Model):
+    proveedor_contacto_id = models.AutoField(primary_key=True)
+    proveedor = models.ForeignKey(
+        "Proveedor",
+        on_delete=models.DO_NOTHING,
+        db_column="proveedor_id",
+        related_name="contactos_relacion",
+    )
+    contacto = models.ForeignKey(
+        "Contacto",
+        on_delete=models.DO_NOTHING,
+        db_column="contacto_id",
+        related_name="proveedores_relacion",
+    )
+    es_principal = models.BooleanField(default=False)
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = "proveedor_contacto"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["proveedor", "contacto"],
+                name="uq_proveedor_contacto",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.proveedor_id} - {self.contacto_id}"
+
+
 class CategoriaProducto(models.Model):
     categoria_producto_id = models.AutoField(primary_key=True)
     codigo = models.CharField(max_length=20, null=True, blank=True)

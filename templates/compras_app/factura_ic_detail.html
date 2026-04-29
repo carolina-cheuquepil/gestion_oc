@@ -130,6 +130,9 @@
                 <span class="fw-semibold">{{ it.compra_item.descripcion_libre|default:"Ítem" }}</span>
                 <div class="text-muted small">Línea {{ it.compra_item.nro_linea }} — Compra #{{ it.compra_item.compra_id }}</div>
               {% endif %}
+              {% if it.compra_item.proyecto %}
+              <div class="text-muted small">Proyecto: {{ it.compra_item.proyecto }}</div>
+              {% endif %}
             </td>
             <td class="text-end">{{ it.cantidad }}</td>
             <td class="text-end">{{ it.precio_base }}</td>

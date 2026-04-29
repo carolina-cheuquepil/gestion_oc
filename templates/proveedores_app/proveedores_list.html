@@ -27,7 +27,7 @@
       <tr>
         <th>ID</th>
         <th>Nombre</th>
-        <th>Razón Social</th>
+        <th>Contacto principal</th>
         <th>RUT</th>
         <th class="text-center">Estado</th>
         <th></th>
@@ -38,7 +38,15 @@
       <tr>
         <td class="text-muted">{{ p.proveedor_id }}</td>
         <td>{{ p.nombre }}</td>
-        <td>{{ p.razon_social }}</td>
+        <td>
+          {% with principal=p.contacto_principal_relacion.0 %}
+            {% if principal %}
+              {{ principal.contacto.nombres }} {{ principal.contacto.apellidos }}
+            {% else %}
+              <span class="text-muted">Sin contacto principal</span>
+            {% endif %}
+          {% endwith %}
+        </td>
         <td>{{ p.rut_completo }}</td>
         <td class="text-center">
           {% if p.empresa_estado %}

@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import transaction
+from django.urls import reverse
 from decimal import Decimal
 from datetime import date as date_cls
 from holding_app.models import Sucursal
@@ -126,10 +127,15 @@ def traspasar_activo_fijo(request, activo_pk):
 def registrar_activos_fijos(request, compra_pk):
     from compras_app.models import Compra
 
+    sucursal_id = sucursal_actual_id(request)
+    if not sucursal_id:
+        return redirect(f"{reverse('seleccionar_sucursal')}?next={request.get_full_path()}")
+
+    sucursal_actual = get_object_or_404(Sucursal.objects.select_related("empresa"), pk=sucursal_id, activa=True)
+
     compra = get_object_or_404(
         Compra.objects.select_related("razon_social", "proveedor"),
         pk=compra_pk,
-        items__sucursal_id=sucursal_actual_id(request),
     )
 
     recp_param = request.GET.get("recp", "") or request.POST.get("recp", "")
@@ -140,10 +146,10 @@ def registrar_activos_fijos(request, compra_pk):
 
     recepciones = RecepcionCompraItem.objects.filter(
         recepcion_compra_item_id__in=recp_ids,
-        compra_item__sucursal_id=sucursal_actual_id(request),
+        compra_item__compra_id=compra.pk,
     ).select_related(
         "compra_item__producto__tipo_producto",
-        "compra_item__sucursal",
+        "compra_item__proyecto",
     )
 
     # Solo ítems cuyo tipo_producto contiene "activo" en el nombre
@@ -164,7 +170,7 @@ def registrar_activos_fijos(request, compra_pk):
                 "recepcion": recepcion,
                 "item": item,
                 "producto": producto,
-                "sucursal": item.sucursal,
+                "sucursal": sucursal_actual,
                 "prefix": f"af_{recepcion.recepcion_compra_item_id}_{i}",
                 "valor_default": item.precio_unitario,
                 "nombre_default": producto.producto_nombre,

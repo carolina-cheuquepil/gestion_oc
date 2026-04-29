@@ -128,6 +128,9 @@
                 {% else %}
                   {{ item.descripcion_libre|default:"—" }}
                 {% endif %}
+                {% if item.proyecto %}
+                <div class="text-muted small">Proyecto: {{ item.proyecto }}</div>
+                {% endif %}
                 {% if info.recepciones %}
                 <div class="mt-1">
                   {% for r in info.recepciones %}

@@ -22,6 +22,120 @@
     </div>
   {% endfor %}
 
+  <hr class="my-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Contactos del proveedor</h5>
+    <button class="btn btn-outline-primary btn-sm" type="button" id="add-contacto">
+      <i class="bi bi-plus-lg me-1"></i>Agregar contacto
+    </button>
+  </div>
+
+  {{ contactos_formset.management_form }}
+  {% if contactos_formset.non_form_errors %}
+    <div class="alert alert-danger py-2">{{ contactos_formset.non_form_errors }}</div>
+  {% endif %}
+
+  <div id="contactos-formset" class="vstack gap-3">
+    {% for contacto_form in contactos_formset %}
+      <div class="border rounded p-3 contacto-form">
+        {{ contacto_form.proveedor_contacto_id }}
+        {{ contacto_form.contacto_id }}
+        {{ contacto_form.DELETE }}
+        <div class="row g-3 align-items-start">
+          <div class="col-md-3">
+            <label class="form-label">Nombres</label>
+            {{ contacto_form.nombres }}
+            {% if contacto_form.nombres.errors %}
+              <div class="invalid-feedback d-block">{{ contacto_form.nombres.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Apellidos</label>
+            {{ contacto_form.apellidos }}
+            {% if contacto_form.apellidos.errors %}
+              <div class="invalid-feedback d-block">{{ contacto_form.apellidos.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Email</label>
+            {{ contacto_form.email }}
+            {% if contacto_form.email.errors %}
+              <div class="invalid-feedback d-block">{{ contacto_form.email.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Celular</label>
+            {{ contacto_form.celular }}
+            {% if contacto_form.celular.errors %}
+              <div class="invalid-feedback d-block">{{ contacto_form.celular.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-1 d-flex justify-content-end">
+            <button class="btn btn-outline-danger btn-sm remove-contacto mt-4" type="button" title="Quitar contacto">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+          <div class="col-md-3">
+            <div class="form-check">
+              {{ contacto_form.es_principal }}
+              <label class="form-check-label">Principal</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-check">
+              {{ contacto_form.activo }}
+              <label class="form-check-label">Activo</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <template id="contacto-empty-form">
+    <div class="border rounded p-3 contacto-form">
+      {{ contactos_formset.empty_form.proveedor_contacto_id }}
+      {{ contactos_formset.empty_form.contacto_id }}
+      {{ contactos_formset.empty_form.DELETE }}
+      <div class="row g-3 align-items-start">
+        <div class="col-md-3">
+          <label class="form-label">Nombres</label>
+          {{ contactos_formset.empty_form.nombres }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Apellidos</label>
+          {{ contactos_formset.empty_form.apellidos }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Email</label>
+          {{ contactos_formset.empty_form.email }}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Celular</label>
+          {{ contactos_formset.empty_form.celular }}
+        </div>
+        <div class="col-md-1 d-flex justify-content-end">
+          <button class="btn btn-outline-danger btn-sm remove-contacto mt-4" type="button" title="Quitar contacto">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check">
+            {{ contactos_formset.empty_form.es_principal }}
+            <label class="form-check-label">Principal</label>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check">
+            {{ contactos_formset.empty_form.activo }}
+            <label class="form-check-label">Activo</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <div class="row mt-4">
     <div class="col-sm-9 offset-sm-3">
       <button class="btn btn-primary px-5" type="submit">Guardar</button>
@@ -30,4 +144,41 @@
   </div>
 </form>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const container = document.getElementById("contactos-formset");
+    const template = document.getElementById("contacto-empty-form");
+    const totalForms = document.getElementById("id_contactos-TOTAL_FORMS");
+    const addButton = document.getElementById("add-contacto");
+
+    addButton.addEventListener("click", () => {
+      const index = Number(totalForms.value);
+      const html = template.innerHTML.replaceAll("__prefix__", index);
+      container.insertAdjacentHTML("beforeend", html);
+      totalForms.value = index + 1;
+    });
+
+    container.addEventListener("click", (event) => {
+      const button = event.target.closest(".remove-contacto");
+      if (!button) return;
+
+      const row = button.closest(".contacto-form");
+      const deleteInput = row.querySelector('input[name$="-DELETE"]');
+      if (deleteInput) {
+        deleteInput.value = "on";
+      }
+      row.classList.add("d-none");
+      row.querySelectorAll("input:not([type='hidden'])").forEach((input) => {
+        if (input.type === "checkbox") {
+          input.checked = false;
+        } else {
+          input.value = "";
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

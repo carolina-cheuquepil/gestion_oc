@@ -28,6 +28,8 @@
         <th>Marca</th>
         <th>Descripción</th>
         <th>Proveedor</th>
+        <th class="text-end">Precio actual</th>
+        <th class="text-center">Historial</th>
         <th></th>
       </tr>
     </thead>
@@ -41,15 +43,67 @@
         <td>{{ p.producto.marca|default:"—" }}</td>
         <td class="text-muted">{{ p.producto.descripcion|truncatechars:50 }}</td>
         <td>{{ p.proveedor.nombre }}</td>
+        <td class="text-end">
+          {% with actual=p.historial_precios.0 %}
+            {% if actual %}
+              {{ actual.moneda }} {{ actual.precio_neto }}
+            {% else %}
+              <span class="text-muted">Sin precio</span>
+            {% endif %}
+          {% endwith %}
+        </td>
+        <td class="text-center">
+          {% if p.historial_precios %}
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#historial-precio-{{ p.proveedor_producto_id }}" aria-expanded="false" aria-controls="historial-precio-{{ p.proveedor_producto_id }}">
+              <i class="bi bi-clock-history me-1"></i>{{ p.historial_precios|length }}
+            </button>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
         <td>
           <a class="btn btn-sm btn-outline-secondary" href="{% url 'producto-editar' pk=p.producto.pk %}">
             <i class="bi bi-pencil me-1"></i>Editar
           </a>
         </td>
       </tr>
+      {% if p.historial_precios %}
+      <tr class="collapse" id="historial-precio-{{ p.proveedor_producto_id }}">
+        <td colspan="10" class="bg-light">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Registro</th>
+                  <th class="text-end">Precio neto</th>
+                  <th>Moneda</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for precio in p.historial_precios %}
+                <tr>
+                  <td class="text-muted">#{{ precio.proveedor_producto_precio_id }}</td>
+                  <td class="text-end">{{ precio.precio_neto }}</td>
+                  <td>{{ precio.moneda }}</td>
+                  <td>
+                    {% if forloop.first %}
+                      <span class="badge text-bg-primary fw-normal">Actual</span>
+                    {% else %}
+                      <span class="text-muted">Historico</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
       {% empty %}
       <tr>
-        <td colspan="7" class="text-center text-muted py-4">Sin productos registrados.</td>
+        <td colspan="10" class="text-center text-muted py-4">Sin productos registrados.</td>
       </tr>
       {% endfor %}
     </tbody>

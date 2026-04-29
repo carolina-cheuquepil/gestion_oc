@@ -1,10 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Proveedor, Producto, ProveedorProducto
+from .models import Proveedor, Producto, ProveedorContacto, ProveedorProducto, ProveedorProductoPrecio
 from .serializers import ProveedorSerializer, ProductoSerializer
-from .forms import ProveedorForm, ProductoForm, ProveedorProductoForm
+from .forms import (
+    ContactoProveedorFormSet,
+    ProveedorForm,
+    ProductoForm,
+    ProveedorProductoForm,
+    contactos_initial_for_proveedor,
+    save_contactos_proveedor,
+)
 from rest_framework.viewsets import ModelViewSet
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError
+from django.db.models import Prefetch, ProtectedError
 from django.http import JsonResponse
 
 
@@ -21,7 +28,17 @@ class ProductoViewSet(ModelViewSet):
 # ----------- Proveedores ------------
 def proveedores_frontend(request):
     q = request.GET.get("q", "").strip()
-    proveedores = Proveedor.objects.all()
+    contacto_principal = ProveedorContacto.objects.select_related("contacto").filter(
+        activo=True,
+        es_principal=True,
+    )
+    proveedores = Proveedor.objects.prefetch_related(
+        Prefetch(
+            "contactos_relacion",
+            queryset=contacto_principal,
+            to_attr="contacto_principal_relacion",
+        )
+    )
     if q:
         from django.db.models import Q
         proveedores = proveedores.filter(
@@ -35,27 +52,47 @@ def proveedores_frontend(request):
 def proveedor_create(request):
     if request.method == "POST":
         form = ProveedorForm(request.POST)
-        if form.is_valid():
-            form.save()
+        contactos_formset = ContactoProveedorFormSet(request.POST, prefix="contactos")
+        if form.is_valid() and contactos_formset.is_valid():
+            with transaction.atomic():
+                proveedor = form.save()
+                save_contactos_proveedor(proveedor, contactos_formset)
             return redirect("proveedores-lista")
     else:
         form = ProveedorForm()
-    return render(request, "proveedores_app/proveedor_form.html", {"form": form})
+        contactos_formset = ContactoProveedorFormSet(prefix="contactos")
+    return render(
+        request,
+        "proveedores_app/proveedor_form.html",
+        {"form": form, "contactos_formset": contactos_formset},
+    )
 
 
 def proveedor_update(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     if request.method == "POST":
         form = ProveedorForm(request.POST, instance=proveedor)
-        if form.is_valid():
-            form.save()
+        contactos_formset = ContactoProveedorFormSet(request.POST, prefix="contactos")
+        if form.is_valid() and contactos_formset.is_valid():
+            with transaction.atomic():
+                proveedor = form.save()
+                save_contactos_proveedor(proveedor, contactos_formset)
             return redirect("proveedores-lista")
     else:
         form = ProveedorForm(instance=proveedor)
+        contactos_formset = ContactoProveedorFormSet(
+            initial=contactos_initial_for_proveedor(proveedor),
+            prefix="contactos",
+        )
     return render(
         request,
         "proveedores_app/proveedor_form.html",
-        {"form": form, "proveedor": proveedor, "is_edit": True},
+        {
+            "form": form,
+            "contactos_formset": contactos_formset,
+            "proveedor": proveedor,
+            "is_edit": True,
+        },
     )
 
 
@@ -63,8 +100,11 @@ def proveedor_update(request, pk):
 def productos_frontend(request):
     from django.db.models import Q
     q = request.GET.get("q", "").strip()
+    historial_precios = ProveedorProductoPrecio.objects.order_by("-proveedor_producto_precio_id")
     productos = ProveedorProducto.objects.select_related(
         "producto", "producto__tipo_producto", "producto__marca", "proveedor"
+    ).prefetch_related(
+        Prefetch("precios", queryset=historial_precios, to_attr="historial_precios")
     )
     if q:
         productos = productos.filter(
@@ -227,11 +267,14 @@ def proveedor_producto_delete(request, proveedor_pk, pk):
 
 def proveedor_productos(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
+    historial_precios = ProveedorProductoPrecio.objects.order_by("-proveedor_producto_precio_id")
     productos = ProveedorProducto.objects.select_related(
         "producto",
         "producto__tipo_producto",
         "producto__marca",
         "producto__uom",
+    ).prefetch_related(
+        Prefetch("precios", queryset=historial_precios, to_attr="historial_precios")
     ).filter(proveedor=proveedor)
     return render(
         request,
@@ -296,4 +339,3 @@ def productos_por_proveedor(request, proveedor_id):
         proveedor_productos__proveedor_id=proveedor_id
     ).distinct().values("producto_id", "producto_nombre", "sku", "descripcion", "uom", "tipo_producto_id", "tipo_producto__nombre")
     return JsonResponse(list(productos), safe=False)
-

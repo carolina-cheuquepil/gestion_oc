@@ -215,7 +215,6 @@
     <thead>
       <tr>
         <th>Producto</th>
-        <th style="width:130px">Sucursal</th>
         <th style="width:160px">Proyecto</th>
         <th class="text-end" style="width:90px">Cantidad</th>
         <th class="text-end" style="width:150px">P. Unitario</th>
@@ -240,7 +239,6 @@
               </button>
             </div>
           </td>
-          <td>{{ f.sucursal }}</td>
           <td>{{ f.proyecto }}</td>
           <td class="text-end">{{ f.cantidad }}</td>
           <td class="text-end">{{ f.precio_unitario }}</td>
@@ -252,7 +250,7 @@
 
         {% if f.errors %}
         <tr>
-          <td colspan="9" class="text-danger">
+          <td colspan="8" class="text-danger">
             {{ f.errors }}
           </td>
         </tr>
@@ -304,7 +302,6 @@
           </button>
         </div>
       </td>
-      <td>{{ formset.empty_form.sucursal }}</td>
       <td>{{ formset.empty_form.proyecto }}</td>
       <td class="text-end">{{ formset.empty_form.cantidad }}</td>
       <td class="text-end">{{ formset.empty_form.precio_unitario }}</td>

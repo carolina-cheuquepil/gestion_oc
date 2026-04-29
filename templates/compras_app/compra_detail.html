@@ -125,6 +125,7 @@
           <tr>
             <th style="width:48px">#</th>
             <th>Producto / Descripción</th>
+            <th>Proyecto</th>
             <th class="text-end">Cant.</th>
             <th class="text-end">P. Unitario</th>
             <th class="text-end">Desc. %</th>
@@ -144,6 +145,7 @@
                 {{ item.descripcion_libre|default:"—" }}
               {% endif %}
             </td>
+            <td>{{ item.proyecto|default:"—" }}</td>
             <td class="text-end">{{ item.cantidad }}</td>
             <td class="text-end">{{ compra.moneda.codigo }} {{ item.precio_unitario }}</td>
             <td class="text-end">{{ item.descuento_porcentaje }}%</td>
@@ -153,7 +155,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">
+            <td colspan="9" class="text-center text-muted py-4">
               Sin ítems registrados.
             </td>
           </tr>
