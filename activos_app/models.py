@@ -57,6 +57,15 @@ class ActivoFijo(models.Model):
         blank=True,
     )
 
+    proyecto_informatica = models.ForeignKey(
+        "compras_app.ProyectoInformatica",
+        on_delete=models.SET_NULL,
+        db_column="proyecto_informatica_id",
+        related_name="activos_fijos",
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         db_table = "activo_fijo"
         managed = False

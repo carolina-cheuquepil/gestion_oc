@@ -1,0 +1,74 @@
+{% extends "layouts/base.html" %}
+{% block title %}Activos del proyecto{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ proyecto.proyecto_nombre }}</h1>
+    <div class="text-muted" style="font-size:.9rem;">
+      {{ proyecto.total_activos|default:0 }} activos asignados - Total $ {{ proyecto.valor_activos|default:"0.00" }}
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'proyectos_list' %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+<div class="table-wrapper">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Codigo inventario</th>
+        <th>Nombre</th>
+        <th>Producto</th>
+        <th>N serie</th>
+        <th>Sucursal</th>
+        <th>Empresa</th>
+        <th>Fecha adq.</th>
+        <th class="text-end">Valor</th>
+        <th>Estado</th>
+        <th>OC origen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for activo in activos %}
+      <tr>
+        <td class="fw-semibold">{{ activo.codigo_inventario }}</td>
+        <td>{{ activo.nombre_activo }}</td>
+        <td class="text-muted">{{ activo.producto }}</td>
+        <td>{{ activo.numero_serie|default:"Pendiente" }}</td>
+        <td>{{ activo.sucursal }}</td>
+        <td>{{ activo.sucursal.empresa }}</td>
+        <td>{{ activo.fecha_adquisicion|date:"d-m-Y" }}</td>
+        <td class="text-end">$ {{ activo.valor }}</td>
+        <td>
+          <span class="badge
+            {% if activo.estado == 'En uso' %}bg-success
+            {% elif activo.estado == 'En bodega' %}bg-secondary
+            {% elif activo.estado == 'En reparacion' %}bg-warning text-dark
+            {% elif activo.estado == 'Dado de baja' %}bg-danger
+            {% else %}bg-light text-dark border{% endif %}">
+            {{ activo.estado }}
+          </span>
+        </td>
+        <td>
+          {% if activo.recepcion_compra_item %}
+            {% with compra=activo.recepcion_compra_item.compra_item.compra %}
+            <a href="{% url 'compra_detail' compra.pk %}" class="text-primary text-decoration-none" style="font-size:.85rem;">
+              OC {{ compra.folio|default:compra.pk }}
+            </a>
+            {% endwith %}
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="10" class="text-center text-muted py-4">No hay activos asignados a este proyecto.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

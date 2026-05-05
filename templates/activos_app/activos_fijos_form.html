@@ -1,5 +1,5 @@
 {% extends "layouts/base.html" %}
-{% block title %}Registrar Activos Fijos — OC {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
+{% block title %}Registrar Activos Fijos - OC {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -16,7 +16,7 @@
     </h4>
     <div class="text-muted" style="font-size:.85rem;">
       OC <strong>{{ compra.folio|default:"SIN FOLIO" }}</strong>
-      — {{ compra.proveedor }} — {{ compra.razon_social }}
+      - {{ compra.proveedor }} - {{ compra.razon_social }}
     </div>
   </div>
   <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
@@ -35,7 +35,7 @@
 
 {% if not units %}
 <div class="alert alert-info">
-  No se encontraron ítems de tipo Activo Fijo en esta recepción.
+  No se encontraron items de tipo Activo Fijo en esta recepcion.
   <a href="{% url 'compra_detail' compra.pk %}" class="alert-link">Volver al detalle</a>.
 </div>
 {% else %}
@@ -47,7 +47,7 @@
   <div class="alert alert-info py-2 mb-4" style="font-size:.875rem;">
     <i class="bi bi-info-circle me-1"></i>
     Se detectaron <strong>{{ units|length }}</strong> unidad(es) de tipo Activo Fijo.
-    Completa los datos de cada una para registrarlas en inventario.
+    Quedaran en custodia de Informatica; el codigo de inventario y la serie se ingresan al entregar.
   </div>
 
   {% for unit in units %}
@@ -59,7 +59,7 @@
           <span class="badge bg-primary me-2">Unidad {{ unit.unit_num }} / {{ unit.total_unidades }}</span>
           <span class="fw-semibold">{{ unit.nombre_default }}</span>
           {% if unit.producto.marca %}
-            <span class="text-muted ms-1">— {{ unit.producto.marca }}</span>
+            <span class="text-muted ms-1">- {{ unit.producto.marca }}</span>
           {% endif %}
         </div>
         <div class="text-muted" style="font-size:.82rem;">
@@ -68,7 +68,6 @@
       </div>
 
       <div class="row g-3">
-
         <div class="col-12 col-md-6">
           <label class="form-label fw-semibold">
             Nombre del activo <span class="text-danger">*</span>
@@ -84,32 +83,7 @@
 
         <div class="col-12 col-md-3">
           <label class="form-label fw-semibold">
-            Código inventario <span class="text-danger">*</span>
-          </label>
-          <input
-            type="text"
-            name="{{ unit.prefix }}_codigo"
-            class="form-control"
-            value="{{ unit.val_codigo }}"
-            placeholder="Ej: AF-2024-001"
-            required
-          >
-        </div>
-
-        <div class="col-12 col-md-3">
-          <label class="form-label fw-semibold">N° serie</label>
-          <input
-            type="text"
-            name="{{ unit.prefix }}_serie"
-            class="form-control"
-            value="{{ unit.val_serie }}"
-            placeholder="Opcional"
-          >
-        </div>
-
-        <div class="col-12 col-md-3">
-          <label class="form-label fw-semibold">
-            Fecha adquisición <span class="text-danger">*</span>
+            Fecha adquisicion <span class="text-danger">*</span>
           </label>
           <input
             type="date"
@@ -143,7 +117,6 @@
             {% endfor %}
           </select>
         </div>
-
       </div>
     </div>
   </div>
@@ -151,13 +124,12 @@
 
   <div class="d-flex flex-wrap gap-2 mt-2">
     <button type="submit" class="btn btn-success px-4">
-      <i class="bi bi-check2-circle me-1"></i>Registrar activos fijos
+      <i class="bi bi-check2-circle me-1"></i>Registrar en custodia
     </button>
     <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
       Omitir y volver
     </a>
   </div>
-
 </form>
 {% endif %}
 

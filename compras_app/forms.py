@@ -4,7 +4,7 @@ from .models import Compra, CompraItem, FacturaIntercompany, FacturaIntercompany
 from proveedores_app.models import Producto
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from decimal import Decimal
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from holding_app.forms import HoldingWidget
 from proveedores_app.forms import ProveedorWidget
 
@@ -41,6 +41,7 @@ class CompraForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["folio"].label = "Folio OC"
         self.fields["fecha_emision"].label = "Fecha OC"
+        self.fields["estado_documento"].label = "Estado compra"
 
 
 class CompraItemForm(forms.ModelForm):
@@ -50,7 +51,6 @@ class CompraItemForm(forms.ModelForm):
             "nro_linea",
             "producto",
             "descripcion_libre",
-            "proyecto",
             "cantidad",
             "precio_unitario",
             "descuento_porcentaje",
@@ -59,7 +59,6 @@ class CompraItemForm(forms.ModelForm):
         widgets = {
             "nro_linea": forms.NumberInput(attrs={"class": "form-control"}),
             "descripcion_libre": forms.TextInput(attrs={"class": "form-control"}),
-            "proyecto": forms.Select(attrs={"class": "form-select form-select-sm"}),
             "cantidad": forms.NumberInput(attrs={"class": "form-control", "step": "0.001"}),
             "precio_unitario": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "descuento_porcentaje": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
@@ -72,13 +71,6 @@ class CompraItemForm(forms.ModelForm):
             self.fields["producto"].queryset = Producto.objects.filter(
                 proveedor_productos__proveedor=proveedor
             ).distinct()
-
-        proyecto_qs = ProyectoInformatica.objects.filter(activo=True)
-        if self.instance and self.instance.proyecto_id:
-            proyecto_qs = ProyectoInformatica.objects.filter(
-                Q(activo=True) | Q(pk=self.instance.proyecto_id)
-            )
-        self.fields["proyecto"].queryset = proyecto_qs.order_by("proyecto_nombre")
 
     def clean(self):
         cleaned = super().clean()
@@ -130,7 +122,6 @@ CompraItemFormSet = inlineformset_factory(
     fields=[
         "producto",
         "descripcion_libre",
-        "proyecto",
         "cantidad",
         "precio_unitario",
         "descuento_porcentaje",
@@ -207,7 +198,7 @@ class FacturaIntercompanyItemForm(forms.ModelForm):
             compra_id = getattr(compra_origen, "pk", compra_origen)
             self.fields["compra_item"].queryset = CompraItem.objects.filter(
                 compra_id=compra_id
-            ).select_related("producto", "proyecto").order_by("nro_linea")
+            ).select_related("producto").order_by("nro_linea")
 
     def clean(self):
         cleaned = super().clean()

@@ -1,6 +1,6 @@
 {# templates/compras_app/compra_detail.html #}
 {% extends "layouts/base.html" %}
-{% block title %}Detalle Compra — {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
+{% block title %}Detalle Compra - {{ compra.tipo_documento }} {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -13,12 +13,12 @@
 
 {% block content %}
 
-<!-- Encabezado del documento -->
+<!-- Encabezado de la compra -->
 <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
   <div>
     <h4 class="mb-1 fw-bold text-dark">
-      {{ compra.tipo_documento }}
-      <span class="text-secondary fw-normal">Nº {{ compra.folio|default:"SIN FOLIO" }}</span>
+      Compra #{{ compra.compra_id }}
+      <span class="text-secondary fw-normal">{{ compra.tipo_documento }} {{ compra.folio|default:"SIN FOLIO" }}</span>
     </h4>
     <div class="text-muted" style="font-size:.85rem;">
       {{ compra.razon_social }}
@@ -27,11 +27,11 @@
 
   <div class="d-flex align-items-center gap-2">
     {% with estado=compra.estado_documento %}
-      {% if estado == "ACEPTADO" or estado == "AUTORIZADO" %}
+      {% if estado.nombre == "ACEPTADO" or estado.nombre == "AUTORIZADO" or estado.nombre == "Aprobado" %}
         <span class="badge bg-success fs-6 px-3 py-2">{{ estado }}</span>
-      {% elif estado == "PENDIENTE" or estado == "EN REVISION" %}
+      {% elif estado.nombre == "PENDIENTE" or estado.nombre == "EN REVISION" or estado.nombre == "En espera" %}
         <span class="badge bg-warning text-dark fs-6 px-3 py-2">{{ estado }}</span>
-      {% elif estado == "RECHAZADO" or estado == "ANULADO" %}
+      {% elif estado.nombre == "RECHAZADO" or estado.nombre == "ANULADO" %}
         <span class="badge bg-danger fs-6 px-3 py-2">{{ estado }}</span>
       {% else %}
         <span class="badge bg-secondary fs-6 px-3 py-2">{{ estado }}</span>
@@ -46,7 +46,7 @@
   <div class="col-12 col-lg-8">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body p-4">
-        <div class="section-title">Información del documento</div>
+        <div class="section-title">Información de la compra</div>
         <div class="row g-3">
 
           <div class="col-6 col-md-4">
@@ -55,7 +55,7 @@
           </div>
 
           <div class="col-6 col-md-4">
-            <div class="detail-label">Tipo de documento</div>
+            <div class="detail-label">Documento actual</div>
             <div class="detail-value">{{ compra.tipo_documento }}</div>
           </div>
 
@@ -125,7 +125,6 @@
           <tr>
             <th style="width:48px">#</th>
             <th>Producto / Descripción</th>
-            <th>Proyecto</th>
             <th class="text-end">Cant.</th>
             <th class="text-end">P. Unitario</th>
             <th class="text-end">Desc. %</th>
@@ -145,7 +144,6 @@
                 {{ item.descripcion_libre|default:"—" }}
               {% endif %}
             </td>
-            <td>{{ item.proyecto|default:"—" }}</td>
             <td class="text-end">{{ item.cantidad }}</td>
             <td class="text-end">{{ compra.moneda.codigo }} {{ item.precio_unitario }}</td>
             <td class="text-end">{{ item.descuento_porcentaje }}%</td>
@@ -155,7 +153,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
+            <td colspan="8" class="text-center text-muted py-4">
               Sin ítems registrados.
             </td>
           </tr>
@@ -166,11 +164,11 @@
   </div>
 </div>
 
-<!-- Historial -->
+<!-- Documentos / Historial -->
 {% if compra.historial.all %}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
-    <div class="section-title">Historial</div>
+    <div class="section-title">Documentos de la compra</div>
     <div class="table-responsive">
       <table class="table table-hover history-table mb-0">
         <thead>

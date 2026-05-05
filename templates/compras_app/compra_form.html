@@ -11,45 +11,6 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h2 class="mb-0">{% if is_edit %}Editar Compra{% else %}Nueva compra{% endif %}</h2>
-  <div class="d-flex gap-2 flex-wrap">
-    <a class="btn btn-outline-secondary" href="{% url 'compras_ui' %}">Volver</a>
-    {% if is_edit %}
-    <button type="button"
-            class="btn btn-outline-secondary"
-            data-bs-toggle="modal"
-            data-bs-target="#modalSubirCotizacion">
-      <i class="bi bi-upload me-1"></i>Subir cotización
-    </button>
-    {% if tiene_cotizacion %}
-    <button type="button"
-            class="btn btn-success"
-            data-bs-toggle="modal"
-            data-bs-target="#modalEnviarOC">
-      <i class="bi bi-send me-1"></i>Enviar OC
-    </button>
-    {% else %}
-    <button type="button"
-            class="btn btn-success"
-            disabled
-            title="Suba primero la cotización en PDF">
-      <i class="bi bi-send me-1"></i>Enviar OC
-    </button>
-    {% endif %}
-    {% else %}
-    <button type="button"
-            class="btn btn-outline-secondary"
-            disabled
-            title="Guarda la compra primero para habilitar esta acción">
-      <i class="bi bi-upload me-1"></i>Subir cotización
-    </button>
-    <button type="button"
-            class="btn btn-success"
-            disabled
-            title="Guarda la compra primero para habilitar esta acción">
-      <i class="bi bi-send me-1"></i>Enviar OC
-    </button>
-    {% endif %}
-  </div>
 </div>
 
 <form method="post"
@@ -128,7 +89,7 @@
 
   <!-- DOCUMENTOS -->
   <hr class="my-3">
-  <h6 class="mb-3 text-secondary">Documentos</h6>
+  <h6 class="mb-3 text-secondary">Documentos de la compra</h6>
 
   <div class="row mb-3">
     <div class="col-sm-6">
@@ -215,7 +176,6 @@
     <thead>
       <tr>
         <th>Producto</th>
-        <th style="width:160px">Proyecto</th>
         <th class="text-end" style="width:90px">Cantidad</th>
         <th class="text-end" style="width:150px">P. Unitario</th>
         <th class="text-end" style="width:100px">Descuento</th>
@@ -239,7 +199,6 @@
               </button>
             </div>
           </td>
-          <td>{{ f.proyecto }}</td>
           <td class="text-end">{{ f.cantidad }}</td>
           <td class="text-end">{{ f.precio_unitario }}</td>
           <td class="text-end">{{ f.descuento_porcentaje }}</td>
@@ -250,7 +209,7 @@
 
         {% if f.errors %}
         <tr>
-          <td colspan="8" class="text-danger">
+          <td colspan="7" class="text-danger">
             {{ f.errors }}
           </td>
         </tr>
@@ -302,7 +261,6 @@
           </button>
         </div>
       </td>
-      <td>{{ formset.empty_form.proyecto }}</td>
       <td class="text-end">{{ formset.empty_form.cantidad }}</td>
       <td class="text-end">{{ formset.empty_form.precio_unitario }}</td>
       <td class="text-end">{{ formset.empty_form.descuento_porcentaje }}</td>
@@ -327,13 +285,6 @@
       </a>
 
       {% if is_edit %}
-      <button type="button"
-              class="btn btn-outline-secondary ms-2"
-              data-bs-toggle="modal"
-              data-bs-target="#modalSubirCotizacion">
-        <i class="bi bi-upload me-1"></i>Subir cotización
-      </button>
-
       {% if tiene_cotizacion %}
       <button type="button"
               class="btn btn-success ms-2"
@@ -350,12 +301,6 @@
       </button>
       {% endif %}
       {% else %}
-      <button type="button"
-              class="btn btn-outline-secondary ms-2"
-              disabled
-              title="Guarda la compra primero para habilitar esta acción">
-        <i class="bi bi-upload me-1"></i>Subir cotización
-      </button>
       <button type="button"
               class="btn btn-success ms-2"
               disabled

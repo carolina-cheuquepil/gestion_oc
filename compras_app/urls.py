@@ -3,7 +3,7 @@ from .views import (
     compras_frontend, compra_detail, compra_update, compra_create,
     factura_ic_create, factura_ic_update, factura_ic_detail, facturas_ic_frontend,
     holding_por_codigo, enviar_oc, cotizacion_upload, aprobar_oc,
-    proyectos_list, proyecto_create, proyecto_update, proyecto_delete,
+    proyectos_list, proyecto_activos, proyecto_create, proyecto_update, proyecto_delete,
     registrar_factura_recepcion,
 )
 
@@ -27,6 +27,7 @@ urlpatterns = [
     path("ajax/holding-por-codigo/", holding_por_codigo, name="holding_por_codigo"),
 
     path("proyectos/", proyectos_list, name="proyectos_list"),
+    path("proyectos/<int:pk>/activos/", proyecto_activos, name="proyecto_activos"),
     path("proyectos/nuevo/", proyecto_create, name="proyecto_create"),
     path("proyectos/<int:pk>/editar/", proyecto_update, name="proyecto_update"),
     path("proyectos/<int:pk>/eliminar/", proyecto_delete, name="proyecto_delete"),

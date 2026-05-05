@@ -1,25 +1,27 @@
 {% extends "layouts/base.html" %}
-{% block title %}Traspasar activo fijo{% endblock %}
+{% block title %}{% if codigo_pendiente %}Entregar activo fijo{% else %}Traspasar activo fijo{% endif %}{% endblock %}
 
 {% block content %}
 
 <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
   <div>
     <h4 class="mb-1 fw-bold text-dark">
-      <i class="bi bi-arrow-left-right me-2 text-primary"></i>Traspasar activo fijo
+      <i class="bi bi-arrow-left-right me-2 text-primary"></i>
+      {% if codigo_pendiente %}Entregar activo fijo{% else %}Traspasar activo fijo{% endif %}
     </h4>
     <div class="text-muted" style="font-size:.85rem;">
-      {{ activo.codigo_inventario }} — {{ activo.nombre_activo }}
+      {% if codigo_pendiente %}Codigo pendiente{% else %}{{ activo.codigo_inventario }}{% endif %}
+      - {{ activo.nombre_activo }}
     </div>
   </div>
-  <a class="btn btn-link btn-sm text-secondary" href="{% url 'activos_list' %}">
+  <a class="btn btn-link btn-sm text-secondary" href="{% url 'activos_informatica_list' %}">
     <i class="bi bi-arrow-left me-1"></i>Volver
   </a>
 </div>
 
 {% if errores %}
 <div class="alert alert-danger mb-3">
-  <strong><i class="bi bi-exclamation-triangle me-1"></i>No se pudo traspasar:</strong>
+  <strong><i class="bi bi-exclamation-triangle me-1"></i>No se pudo entregar:</strong>
   <ul class="mb-0 mt-1">
     {% for e in errores %}<li>{{ e }}</li>{% endfor %}
   </ul>
@@ -35,11 +37,23 @@
           <dt class="col-5">Producto</dt>
           <dd class="col-7">{{ activo.producto }}</dd>
 
-          <dt class="col-5">Sucursal actual</dt>
+          <dt class="col-5">Ubicacion actual</dt>
           <dd class="col-7">{{ activo.sucursal }}</dd>
 
           <dt class="col-5">Empresa actual</dt>
           <dd class="col-7">{{ activo.sucursal.empresa }}</dd>
+
+          <dt class="col-5">Codigo</dt>
+          <dd class="col-7">
+            {% if codigo_pendiente %}
+              <span class="badge bg-warning text-dark">Pendiente</span>
+            {% else %}
+              {{ activo.codigo_inventario }}
+            {% endif %}
+          </dd>
+
+          <dt class="col-5">Serie</dt>
+          <dd class="col-7">{{ activo.numero_serie|default:"Pendiente" }}</dd>
 
           <dt class="col-5">Valor base</dt>
           <dd class="col-7">$ {{ activo.valor }}</dd>
@@ -61,7 +75,44 @@
     <form method="post" class="card border-0 shadow-sm">
       {% csrf_token %}
       <div class="card-body p-4">
-        <div class="text-muted fw-semibold mb-3" style="font-size:.78rem;text-transform:uppercase;">Destino y facturación</div>
+        <div class="text-muted fw-semibold mb-3" style="font-size:.78rem;text-transform:uppercase;">Inventario y destino</div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">Codigo inventario <span class="text-danger">*</span></label>
+            <input
+              type="text"
+              name="codigo_inventario"
+              class="form-control"
+              value="{{ val_codigo_inventario }}"
+              placeholder="Ej: AF-2026-001"
+              required
+            >
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">N serie <span class="text-danger">*</span></label>
+            <input
+              type="text"
+              name="numero_serie"
+              class="form-control"
+              value="{{ val_numero_serie }}"
+              required
+            >
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">Folio Factura IC <span class="text-danger">*</span></label>
+            <input
+              type="text"
+              name="folio_factura_ic"
+              class="form-control"
+              value="{{ val_folio_factura_ic }}"
+              maxlength="30"
+              required
+            >
+          </div>
+        </div>
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Sucursal destino <span class="text-danger">*</span></label>
@@ -69,38 +120,54 @@
             <option value="">Selecciona una sucursal</option>
             {% for sucursal in sucursales %}
               <option value="{{ sucursal.pk }}">
-                {{ sucursal.nombre }} — {{ sucursal.empresa }}
+                {{ sucursal.nombre }} - {{ sucursal.empresa }}
               </option>
             {% endfor %}
           </select>
           <div class="form-text">
-            Se generará una Factura Intercompany desde la empresa actual hacia la empresa de la sucursal destino.
+            Se generara una Factura Intercompany desde la empresa actual hacia la empresa de la sucursal destino.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Proyecto Informatica</label>
+          <select name="proyecto_informatica" class="form-select">
+            <option value="">Sin proyecto asignado</option>
+            {% for proyecto in proyectos %}
+              <option value="{{ proyecto.pk }}" {% if val_proyecto_informatica_id == proyecto.pk|stringformat:"s" %}selected{% endif %}>
+                {{ proyecto.proyecto_nombre }}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            Opcional. Selecciona un proyecto si el activo debe quedar asociado a una iniciativa de Informatica.
           </div>
         </div>
 
         {% if compra_item %}
         <div class="alert alert-info py-2" style="font-size:.875rem;">
           <i class="bi bi-receipt me-1"></i>
-          Se facturará 1 unidad del ítem de compra:
+          Se facturara 1 unidad del item de compra:
           <strong>
             {% if compra_item.producto %}
               {{ compra_item.producto.producto_nombre }}
             {% else %}
-              {{ compra_item.descripcion_libre|default:"Ítem" }}
+              {{ compra_item.descripcion_libre|default:"Item" }}
             {% endif %}
           </strong>
         </div>
         {% else %}
         <div class="alert alert-warning py-2" style="font-size:.875rem;">
-          Este activo no tiene recepción de compra asociada. No se puede generar la Factura Intercompany automáticamente.
+          Este activo no tiene recepcion de compra asociada. No se puede generar la Factura Intercompany automaticamente.
         </div>
         {% endif %}
 
         <div class="d-flex flex-wrap gap-2 mt-4">
           <button type="submit" class="btn btn-success px-4" {% if not compra_item %}disabled{% endif %}>
-            <i class="bi bi-check2-circle me-1"></i>Traspasar y facturar
+            <i class="bi bi-check2-circle me-1"></i>
+            {% if codigo_pendiente %}Entregar y facturar{% else %}Traspasar y facturar{% endif %}
           </button>
-          <a class="btn btn-link btn-sm text-secondary" href="{% url 'activos_list' %}">Cancelar</a>
+          <a class="btn btn-link btn-sm text-secondary" href="{% url 'activos_informatica_list' %}">Cancelar</a>
         </div>
       </div>
     </form>

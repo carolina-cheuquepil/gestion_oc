@@ -1,20 +1,29 @@
 <tr>
   <td class="text-muted">{{ c.compra_id }}</td>
-  <td>{{ c.tipo_documento }}</td>
+  <td>
+    {% if c.ultimo_historial %}
+      <div class="fw-semibold">{{ c.ultimo_historial.tipo_documento }}</div>
+      <div class="text-muted small">{{ c.ultimo_historial.fecha_evento|date:"d-m-Y H:i" }}</div>
+    {% else %}
+      <span class="text-muted">Sin historial</span>
+    {% endif %}
+  </td>
   <td>{{ c.razon_social }}</td>
   <td>{{ c.proveedor }}</td>
-  <td>{{ c.folio }}</td>
-  <td>{{ c.fecha_emision|date:"d-m-Y" }}</td>
+  <td>{{ c.ultimo_historial.folio|default:"—" }}</td>
+  <td>{{ c.ultimo_historial.fecha_documento|date:"d-m-Y"|default:"—" }}</td>
   <td>
-    {% with e=c.estado_documento %}
-      {% if e == "ACEPTADO" or e == "AUTORIZADO" %}
+    {% with e=c.ultimo_historial.estado_documento %}
+      {% if e.nombre == "ACEPTADO" or e.nombre == "AUTORIZADO" or e.nombre == "Aprobado" %}
         <span class="badge bg-success">{{ e }}</span>
-      {% elif e == "PENDIENTE" or e == "EN REVISION" %}
+      {% elif e.nombre == "PENDIENTE" or e.nombre == "EN REVISION" or e.nombre == "En espera" %}
         <span class="badge bg-warning text-dark">{{ e }}</span>
-      {% elif e == "RECHAZADO" or e == "ANULADO" %}
+      {% elif e.nombre == "RECHAZADO" or e.nombre == "ANULADO" %}
         <span class="badge bg-danger">{{ e }}</span>
-      {% else %}
+      {% elif e %}
         <span class="badge bg-secondary">{{ e }}</span>
+      {% else %}
+        <span class="text-muted">—</span>
       {% endif %}
     {% endwith %}
   </td>
@@ -34,6 +43,12 @@
               data-bs-target="#modalAprobarOC">
         <i class="bi bi-check-circle me-1"></i>Aprobar OC
       </button>
+    {% endif %}
+    {% if c.estado_documento.nombre == "Aprobado" and not c.factura_registrada %}
+      <a class="btn btn-sm btn-success"
+         href="{% url 'registrar_factura_recepcion' c.compra_id %}">
+        <i class="bi bi-file-earmark-text me-1"></i>Ingresar factura
+      </a>
     {% endif %}
   </td>
 </tr>

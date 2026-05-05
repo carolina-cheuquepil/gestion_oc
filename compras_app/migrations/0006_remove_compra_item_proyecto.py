@@ -1,7 +1,7 @@
 from django.db import migrations
 
 
-def fix_compra_item_proyecto_fk(apps, schema_editor):
+def remove_compra_item_proyecto(apps, schema_editor):
     if schema_editor.connection.vendor != "mysql":
         return
 
@@ -23,7 +23,7 @@ def fix_compra_item_proyecto_fk(apps, schema_editor):
 
         cursor.execute(
             """
-            SELECT CONSTRAINT_NAME, REFERENCED_TABLE_NAME
+            SELECT CONSTRAINT_NAME
             FROM information_schema.KEY_COLUMN_USAGE
             WHERE TABLE_SCHEMA = %s
               AND TABLE_NAME = 'compra_item'
@@ -32,9 +32,7 @@ def fix_compra_item_proyecto_fk(apps, schema_editor):
             """,
             [db_name],
         )
-        constraints = cursor.fetchall()
-
-        for constraint_name, referenced_table in constraints:
+        for (constraint_name,) in cursor.fetchall():
             cursor.execute(
                 f"ALTER TABLE compra_item DROP FOREIGN KEY `{constraint_name}`"
             )
@@ -45,12 +43,12 @@ def fix_compra_item_proyecto_fk(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("compras_app", "0004_compraitem_facturaintercompany_and_more"),
+        ("compras_app", "0005_fix_compra_item_proyecto_fk"),
     ]
 
     operations = [
         migrations.RunPython(
-            fix_compra_item_proyecto_fk,
+            remove_compra_item_proyecto,
             reverse_code=migrations.RunPython.noop,
         ),
     ]

@@ -17,6 +17,8 @@
         <th>Nombre</th>
         <th>Inicio</th>
         <th>Fin</th>
+        <th class="text-end">Activos</th>
+        <th class="text-end">Total activos</th>
         <th>Estado</th>
         <th></th>
       </tr>
@@ -28,6 +30,8 @@
         <td>{{ p.proyecto_nombre }}</td>
         <td>{{ p.fecha_inicio|date:"d-m-Y"|default:"—" }}</td>
         <td>{{ p.fecha_fin|date:"d-m-Y"|default:"—" }}</td>
+        <td class="text-end">{{ p.total_activos|default:0 }}</td>
+        <td class="text-end">$ {{ p.valor_activos|default:"0.00" }}</td>
         <td>
           {% if p.activo %}
             <span class="badge bg-success">Activo</span>
@@ -36,6 +40,10 @@
           {% endif %}
         </td>
         <td>
+          <a class="btn btn-sm btn-outline-primary me-1"
+             href="{% url 'proyecto_activos' p.proyecto_id %}">
+            <i class="bi bi-box-seam me-1"></i>Ver activos
+          </a>
           <a class="btn btn-sm btn-outline-secondary me-1"
              href="{% url 'proyecto_update' p.proyecto_id %}">
             <i class="bi bi-pencil me-1"></i>Editar
@@ -45,6 +53,7 @@
                   data-bs-toggle="modal"
                   data-bs-target="#modalEliminar"
                   data-id="{{ p.proyecto_id }}"
+                  data-url="{% url 'proyecto_delete' p.proyecto_id %}"
                   data-nombre="{{ p.proyecto_nombre }}">
             <i class="bi bi-trash"></i>
           </button>
@@ -52,7 +61,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="7" class="text-center text-muted py-4">No hay proyectos registrados.</td>
+        <td colspan="8" class="text-center text-muted py-4">No hay proyectos registrados.</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -85,7 +94,7 @@
 document.getElementById("modalEliminar").addEventListener("show.bs.modal", function (e) {
   const btn = e.relatedTarget;
   document.getElementById("modal-nombre").textContent = btn.dataset.nombre;
-  document.getElementById("form-eliminar").action = `/proyectos/${btn.dataset.id}/eliminar/`;
+  document.getElementById("form-eliminar").action = btn.dataset.url;
 });
 </script>
 {% endblock %}

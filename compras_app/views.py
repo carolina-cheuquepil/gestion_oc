@@ -6,12 +6,14 @@ from proveedores_app.models import ProveedorProducto, ProveedorProductoPrecio
 from .serializers import CompraSerializer
 from rest_framework.viewsets import ModelViewSet
 from .forms import CompraForm, CompraItemFormSet, FacturaIntercompanyForm, FacturaIntercompanyItemFormSet, CotizacionUploadForm, ProyectoForm, FacturaProveedorForm
-from activos_app.models import RecepcionCompraItem
+from activos_app.models import ActivoFijo, RecepcionCompraItem
 from django.views.generic import UpdateView
 from django.urls import reverse_lazy
+from django.conf import settings
+from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponseRedirect, JsonResponse
-from django.db.models import Exists, OuterRef
+from django.db.models import Count, Exists, OuterRef, Sum
 from django.utils import timezone
 from django.db.models import Max
 from decimal import Decimal
@@ -24,6 +26,7 @@ from holding_app.access import (
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 import mimetypes
+import smtplib
 
 
 class CompraViewSet(ModelViewSet):
@@ -51,6 +54,62 @@ def _recalcular_totales_compra(compra):
     compra.total = (total_neto + iva - retencion).quantize(Decimal("0.01"))
     compra.save(update_fields=["total_neto", "total_iva", "total"])
 
+
+def _sincronizar_compra_con_historial(compra, historial=None, save=True):
+    historial = historial or (
+        compra.historial
+        .select_related("tipo_documento", "estado_documento")
+        .order_by("-fecha_evento", "-historial_compra_id")
+        .first()
+    )
+    if not historial:
+        return compra
+
+    changed = []
+    if compra.tipo_documento_id != historial.tipo_documento_id:
+        compra.tipo_documento = historial.tipo_documento
+        changed.append("tipo_documento_id")
+    if compra.estado_documento_id != historial.estado_documento_id:
+        compra.estado_documento = historial.estado_documento
+        changed.append("estado_documento_id")
+    if compra.folio != historial.folio:
+        compra.folio = historial.folio
+        changed.append("folio")
+
+    if save and changed:
+        compra.save(update_fields=changed)
+
+    return compra
+
+
+def _crear_historial_documento(compra, tipo_documento, estado_documento, folio=None, fecha_documento=None, archivo=None):
+    """
+    Una compra es el expediente principal; cotizacion, OC, factura, recepcion,
+    correos y aprobaciones quedan como documentos/eventos de su historial.
+    """
+    historial = HistorialCompra.objects.create(
+        compra=compra,
+        fecha_evento=timezone.now(),
+        fecha_documento=fecha_documento,
+        tipo_documento=tipo_documento,
+        estado_documento=estado_documento,
+        folio=folio,
+        archivo=archivo,
+    )
+    _sincronizar_compra_con_historial(compra, historial=historial)
+    return historial
+
+
+def _historial_documento_existe(compra, tipo_documento, folio=None, fecha_documento=None, archivo=None):
+    qs = HistorialCompra.objects.filter(compra=compra, tipo_documento=tipo_documento)
+    if folio:
+        qs = qs.filter(folio=folio)
+    if fecha_documento:
+        qs = qs.filter(fecha_documento=fecha_documento)
+    if archivo:
+        qs = qs.filter(archivo=archivo)
+    return qs.exists()
+
 #----------------- Compras IT ---------------
 @login_sucursal_required
 def compras_frontend(request):
@@ -58,9 +117,24 @@ def compras_frontend(request):
         compra=OuterRef("pk"),
         tipo_documento__codigo="EMAIL",
     )
+    factura_registrada_sub = HistorialCompra.objects.filter(
+        compra=OuterRef("pk"),
+        tipo_documento__codigo="FACT",
+    )
     compras = Compra.objects.select_related(
         "tipo_documento", "estado_documento", "proveedor", "razon_social"
-    ).distinct().annotate(oc_enviada=Exists(oc_enviada_sub))
+    ).prefetch_related(
+        Prefetch(
+            "historial",
+            queryset=HistorialCompra.objects.select_related(
+                "tipo_documento", "estado_documento"
+            ).order_by("-fecha_evento"),
+            to_attr="historial_ordenado",
+        ),
+    ).distinct().annotate(
+        oc_enviada=Exists(oc_enviada_sub),
+        factura_registrada=Exists(factura_registrada_sub),
+    )
 
     compras_por_proveedor = []
     compras_list = sorted(
@@ -68,6 +142,12 @@ def compras_frontend(request):
         key=lambda compra: (str(compra.proveedor or "").lower(), compra.fecha_emision, compra.compra_id),
     )
     for compra in compras_list:
+        compra.ultimo_historial = (
+            compra.historial_ordenado[0]
+            if getattr(compra, "historial_ordenado", None)
+            else None
+        )
+        _sincronizar_compra_con_historial(compra, historial=compra.ultimo_historial, save=False)
         if not compras_por_proveedor or compras_por_proveedor[-1]["proveedor"] != compra.proveedor:
             compras_por_proveedor.append({
                 "proveedor": compra.proveedor,
@@ -94,11 +174,12 @@ def compra_detail(request, pk):
             "historial",
             Prefetch(
                 "items",
-                queryset=CompraItem.objects.select_related("producto", "proyecto"),
+                queryset=CompraItem.objects.select_related("producto"),
             ),
         ),
         pk=pk,
     )
+    _sincronizar_compra_con_historial(compra)
     return render(request, "compras_app/compra_detail.html", {"compra": compra})
 
 
@@ -128,6 +209,10 @@ def compra_create(request):
             if td_oc and compra_tmp:
                 compra_tmp.tipo_documento = td_oc
             compra = form.save()
+            oc_tipo_documento = compra.tipo_documento
+            oc_estado_documento = compra.estado_documento
+            oc_folio = compra.folio
+            oc_fecha_emision = compra.fecha_emision
 
             folio_cot = form.cleaned_data.get("folio_cotizacion") or ""
             fecha_cot = form.cleaned_data.get("fecha_cotizacion")
@@ -139,23 +224,21 @@ def compra_create(request):
                         EstadoDocumento.objects.filter(nombre="Recibido").first()
                         if archivo_cot else compra.estado_documento
                     )
-                    HistorialCompra.objects.create(
+                    _crear_historial_documento(
                         compra=compra,
-                        fecha_evento=timezone.now(),
-                        fecha_documento=fecha_cot,
                         tipo_documento=td_cot,
                         estado_documento=estado_cot,
                         folio=folio_cot,
+                        fecha_documento=fecha_cot,
                         archivo=archivo_cot,
                     )
 
-            HistorialCompra.objects.create(
+            _crear_historial_documento(
                 compra=compra,
-                fecha_evento=timezone.now(),
-                fecha_documento=compra.fecha_emision,
-                tipo_documento=compra.tipo_documento,
-                estado_documento=compra.estado_documento,
-                folio=compra.folio,
+                tipo_documento=oc_tipo_documento,
+                estado_documento=oc_estado_documento,
+                folio=oc_folio,
+                fecha_documento=oc_fecha_emision,
             )
 
             formset.instance = compra
@@ -204,6 +287,13 @@ def compra_create(request):
 
             formset.save_m2m()
             _recalcular_totales_compra(compra)
+
+            if archivo_cot and (compra.folio or "").strip():
+                enviado, error = solicitar_aprobacion_oc(compra)
+                if enviado:
+                    messages.success(request, "Compra guardada y correo de OC enviado.")
+                else:
+                    messages.warning(request, f"Compra guardada, pero no se envio el correo de OC. {error}")
 
             return redirect("compra_update", pk=compra.pk)
 
@@ -293,29 +383,31 @@ class CompraUpdateView(SucursalAccessMixin, UpdateView):
                 compra.tipo_documento = td_oc
             compra.save()
             form.save_m2m()
+            oc_tipo_documento = compra.tipo_documento
+            oc_estado_documento = compra.estado_documento
+            oc_folio = compra.folio
+            oc_fecha_emision = compra.fecha_emision
 
             folio_cot = form.cleaned_data.get("folio_cotizacion") or ""
             fecha_cot = form.cleaned_data.get("fecha_cotizacion")
             if folio_cot or fecha_cot:
                 td_cot = TipoDocumento.objects.filter(codigo="COT").first()
-                if td_cot:
-                    HistorialCompra.objects.create(
+                if td_cot and not _historial_documento_existe(compra, td_cot, folio_cot, fecha_cot):
+                    _crear_historial_documento(
                         compra=compra,
-                        fecha_evento=timezone.now(),
-                        fecha_documento=fecha_cot,
                         tipo_documento=td_cot,
                         estado_documento=compra.estado_documento,
                         folio=folio_cot,
+                        fecha_documento=fecha_cot,
                     )
 
             if header_changed or items_changed:
-                HistorialCompra.objects.create(
+                _crear_historial_documento(
                     compra=compra,
-                    fecha_evento=timezone.now(),
-                    fecha_documento=compra.fecha_emision,
-                    tipo_documento=compra.tipo_documento,
-                    estado_documento=compra.estado_documento,
-                    folio=compra.folio,
+                    tipo_documento=oc_tipo_documento,
+                    estado_documento=oc_estado_documento,
+                    folio=oc_folio,
+                    fecha_documento=oc_fecha_emision,
                 )
 
             items = formset.save(commit=False)
@@ -447,7 +539,7 @@ def factura_ic_detail(request, pk):
         ).prefetch_related(
             Prefetch(
                 "items",
-                queryset=FacturaIntercompanyItem.objects.select_related("compra_item__producto", "compra_item__proyecto"),
+                queryset=FacturaIntercompanyItem.objects.select_related("compra_item__producto"),
             ),
         ).distinct(),
         pk=pk,
@@ -531,12 +623,19 @@ def holding_por_codigo(request):
 
 
 def enviar_correo_oc(compra):
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        return False, (
+            "No se pudo enviar el correo de OC porque faltan las variables "
+            "EMAIL_HOST_USER y/o EMAIL_HOST_PASSWORD."
+        )
+
     subject = f"Solicitud autorización OC N° {compra.folio}"
     body = render_to_string("compras_app/oc_autorizacion.html", {"compra": compra})
 
     email = EmailMessage(
         subject=subject,
         body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
         to=["carolina.cheuquepil@dimarsa.cl"],
     )
     email.content_subtype = "html"
@@ -554,7 +653,10 @@ def enviar_correo_oc(compra):
         with cot.archivo.open("rb") as f:
             email.attach(filename, f.read(), ctype or "application/pdf")
 
-    email.send()
+    try:
+        email.send()
+    except (smtplib.SMTPException, OSError) as exc:
+        return False, f"No se pudo enviar el correo de OC: {exc}"
 
     td_email, _ = TipoDocumento.objects.get_or_create(
         codigo="EMAIL",
@@ -562,13 +664,33 @@ def enviar_correo_oc(compra):
     )
     estado_enviado = EstadoDocumento.objects.get(nombre="Enviado")
 
-    compra.historial.create(
-        fecha_evento=timezone.now(),
-        fecha_documento=timezone.now().date(),
+    _crear_historial_documento(
+        compra=compra,
         tipo_documento=td_email,
         estado_documento=estado_enviado,
-        folio=compra.folio
+        folio=compra.folio,
+        fecha_documento=timezone.now().date(),
     )
+
+    return True, ""
+
+
+def solicitar_aprobacion_oc(compra):
+    td_oc = TipoDocumento.objects.filter(codigo="OC").first() or compra.tipo_documento
+    folio_oc = compra.folio
+    enviado, error = enviar_correo_oc(compra)
+    if not enviado:
+        return False, error
+
+    estado_espera = EstadoDocumento.objects.get(nombre="En espera")
+    _crear_historial_documento(
+        compra=compra,
+        tipo_documento=td_oc,
+        estado_documento=estado_espera,
+        folio=folio_oc,
+        fecha_documento=timezone.now().date(),
+    )
+    return True, ""
 
 
 @login_sucursal_required
@@ -580,11 +702,11 @@ def enviar_oc(request, pk):
         Compra.objects.all(),
         pk=pk,
     )
-    estado_espera = EstadoDocumento.objects.get(nombre="En espera")
-    compra.estado = estado_espera
-    compra.save()
-
-    enviar_correo_oc(compra)
+    enviado, error = solicitar_aprobacion_oc(compra)
+    if enviado:
+        messages.success(request, "Correo de OC enviado.")
+    else:
+        messages.warning(request, error)
 
     return redirect("compra_detail", pk=pk)
 
@@ -598,6 +720,7 @@ def aprobar_oc(request, pk):
         Compra.objects.all(),
         pk=pk,
     )
+    _sincronizar_compra_con_historial(compra)
     fecha_str = request.POST.get("fecha_aprobacion", "").strip()
 
     try:
@@ -608,17 +731,13 @@ def aprobar_oc(request, pk):
 
     estado_aprobado, _ = EstadoDocumento.objects.get_or_create(nombre="Aprobado")
 
-    HistorialCompra.objects.create(
+    _crear_historial_documento(
         compra=compra,
-        fecha_evento=timezone.now(),
-        fecha_documento=fecha,
-        tipo_documento=compra.tipo_documento,
+        tipo_documento=TipoDocumento.objects.filter(codigo="OC").first() or compra.tipo_documento,
         estado_documento=estado_aprobado,
         folio=compra.folio,
+        fecha_documento=fecha,
     )
-
-    compra.estado_documento = estado_aprobado
-    compra.save(update_fields=["estado_documento_id"])
 
     return JsonResponse({"ok": True})
 
@@ -679,7 +798,7 @@ def registrar_factura_recepcion(request, pk):
                       .prefetch_related(
                           Prefetch(
                               "items",
-                              queryset=CompraItem.objects.select_related("producto__tipo_producto", "proyecto").prefetch_related("recepciones"),
+                              queryset=CompraItem.objects.select_related("producto__tipo_producto").prefetch_related("recepciones"),
                           ),
                       ),
         pk=pk,
@@ -700,13 +819,12 @@ def registrar_factura_recepcion(request, pk):
                     defaults={"nombre": "Factura Proveedor"},
                 )
                 estado_recibido, _ = EstadoDocumento.objects.get_or_create(nombre="Recibido")
-                HistorialCompra.objects.create(
+                _crear_historial_documento(
                     compra=compra,
-                    fecha_evento=timezone.now(),
-                    fecha_documento=fecha_factura,
                     tipo_documento=td_fact,
                     estado_documento=estado_recibido,
                     folio=folio_factura or None,
+                    fecha_documento=fecha_factura,
                     archivo=archivo_factura,
                 )
 
@@ -733,13 +851,12 @@ def registrar_factura_recepcion(request, pk):
                     defaults={"nombre": "Recepción"},
                 )
                 estado_recibido, _ = EstadoDocumento.objects.get_or_create(nombre="Recibido")
-                HistorialCompra.objects.create(
+                _crear_historial_documento(
                     compra=compra,
-                    fecha_evento=timezone.now(),
-                    fecha_documento=timezone.now().date(),
                     tipo_documento=td_recep,
                     estado_documento=estado_recibido,
                     folio=compra.folio,
+                    fecha_documento=timezone.now().date(),
                 )
 
                 # Si algún ítem recibido es Activo Fijo, redirigir a registro de activos
@@ -783,8 +900,40 @@ def registrar_factura_recepcion(request, pk):
 
 @login_sucursal_required
 def proyectos_list(request):
-    proyectos = ProyectoInformatica.objects.all()
+    proyectos = ProyectoInformatica.objects.annotate(
+        total_activos=Count("activos_fijos", distinct=True),
+        valor_activos=Sum("activos_fijos__valor"),
+    )
     return render(request, "compras_app/proyectos_list.html", {"proyectos": proyectos})
+
+
+@login_sucursal_required
+def proyecto_activos(request, pk):
+    proyecto = get_object_or_404(
+        ProyectoInformatica.objects.annotate(
+            total_activos=Count("activos_fijos", distinct=True),
+            valor_activos=Sum("activos_fijos__valor"),
+        ),
+        pk=pk,
+    )
+    activos = (
+        ActivoFijo.objects
+        .select_related(
+            "producto",
+            "sucursal__empresa",
+            "recepcion_compra_item__compra_item__compra",
+        )
+        .filter(proyecto_informatica=proyecto)
+        .order_by("nombre_activo")
+    )
+    return render(
+        request,
+        "compras_app/proyecto_activos.html",
+        {
+            "proyecto": proyecto,
+            "activos": activos,
+        },
+    )
 
 
 @login_sucursal_required

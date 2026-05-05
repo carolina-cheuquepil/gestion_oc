@@ -1,46 +1,113 @@
-from django.core.exceptions import ValidationError
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db import transaction
-from django.urls import reverse
-from decimal import Decimal
 from datetime import date as date_cls
+from decimal import Decimal
+from functools import wraps
+from uuid import uuid4
+
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+
+from holding_app.access import (
+    SESSION_TODAS_SUCURSALES,
+    SESSION_USUARIO_ID,
+    login_sucursal_required,
+    sucursal_actual_id,
+)
 from holding_app.models import Sucursal
-from holding_app.access import login_sucursal_required, sucursal_actual_id
-from .models import RecepcionCompraItem, ActivoFijo
+from .models import ActivoFijo, RecepcionCompraItem
 
 
-@login_sucursal_required
-def activos_fijos_list(request):
-    activos = ActivoFijo.objects.select_related(
+SUCURSAL_CUSTODIA_INFORMATICA_ID = 22
+CODIGO_INVENTARIO_PENDIENTE_PREFIX = "PEND-AF-"
+ESTADOS_ACTIVO = ["En bodega", "En uso", "En reparacion", "Dado de baja"]
+
+
+def login_usuario_required(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get(SESSION_USUARIO_ID):
+            return redirect(f"{reverse('login')}?next={request.get_full_path()}")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def _activos_queryset():
+    return ActivoFijo.objects.select_related(
         "producto",
+        "proyecto_informatica",
         "sucursal__empresa",
         "recepcion_compra_item__compra_item__compra",
-    ).filter(
-        sucursal_id=sucursal_actual_id(request),
-    ).order_by("sucursal__nombre", "nombre_activo")
-    return render(request, "activos_app/activos_list.html", {"activos": activos})
+    )
 
-ESTADOS_ACTIVO = ["En bodega", "En uso", "En reparación", "Dado de baja"]
+
+def _sucursal_custodia_informatica():
+    return get_object_or_404(
+        Sucursal.objects.select_related("empresa"),
+        pk=SUCURSAL_CUSTODIA_INFORMATICA_ID,
+        activa=True,
+    )
 
 
 def _folio_factura_ic_activo(activo):
     return f"IC-AF-{activo.activo_fijo_id}-{date_cls.today().strftime('%Y%m%d')}"
 
 
-@transaction.atomic
-@login_sucursal_required
-def traspasar_activo_fijo(request, activo_pk):
-    from compras_app.models import FacturaIntercompany, FacturaIntercompanyItem
+def _codigo_inventario_pendiente(recepcion_id, unit_num):
+    return f"{CODIGO_INVENTARIO_PENDIENTE_PREFIX}{recepcion_id}-{unit_num}-{uuid4().hex[:8]}"
 
-    activo = get_object_or_404(
-        ActivoFijo.objects.select_related(
-            "producto",
-            "sucursal__empresa",
-            "recepcion_compra_item__compra_item__compra__moneda",
-        ),
-        pk=activo_pk,
+
+def _codigo_inventario_pendiente_activo(activo):
+    return (activo.codigo_inventario or "").startswith(CODIGO_INVENTARIO_PENDIENTE_PREFIX)
+
+
+@login_sucursal_required
+def activos_fijos_list(request):
+    activos = _activos_queryset().filter(
         sucursal_id=sucursal_actual_id(request),
+    ).order_by("sucursal__nombre", "nombre_activo")
+    return render(request, "activos_app/activos_list.html", {
+        "activos": activos,
+        "codigo_pendiente_prefix": CODIGO_INVENTARIO_PENDIENTE_PREFIX,
+    })
+
+
+@login_usuario_required
+def activos_informatica_list(request):
+    activos = _activos_queryset().filter(
+        sucursal_id=SUCURSAL_CUSTODIA_INFORMATICA_ID,
+    ).order_by("nombre_activo")
+    return render(request, "activos_app/activos_list.html", {
+        "activos": activos,
+        "titulo": "Activos en Informatica",
+        "subtitulo": "Custodia Informatica 6 piso",
+        "empty_message": "No hay activos fijos en custodia de Informatica.",
+        "codigo_pendiente_prefix": CODIGO_INVENTARIO_PENDIENTE_PREFIX,
+    })
+
+
+@transaction.atomic
+@login_usuario_required
+def traspasar_activo_fijo(request, activo_pk):
+    from compras_app.models import FacturaIntercompany, FacturaIntercompanyItem, ProyectoInformatica
+
+    activos_disponibles = ActivoFijo.objects.select_related(
+        "producto",
+        "proyecto_informatica",
+        "sucursal__empresa",
+        "recepcion_compra_item__compra_item__compra__moneda",
     )
+    if not request.session.get(SESSION_TODAS_SUCURSALES):
+        activos_disponibles = activos_disponibles.filter(sucursal_id=sucursal_actual_id(request))
+    activos_disponibles = activos_disponibles | ActivoFijo.objects.select_related(
+        "producto",
+        "proyecto_informatica",
+        "sucursal__empresa",
+        "recepcion_compra_item__compra_item__compra__moneda",
+    ).filter(sucursal_id=SUCURSAL_CUSTODIA_INFORMATICA_ID)
+
+    activo = get_object_or_404(activos_disponibles.distinct(), pk=activo_pk)
 
     compra_item = None
     compra = None
@@ -48,18 +115,58 @@ def traspasar_activo_fijo(request, activo_pk):
         compra_item = activo.recepcion_compra_item.compra_item
         compra = compra_item.compra
 
-    sucursales = Sucursal.objects.select_related("empresa").filter(
-        activa=True,
-        usuario_sucursales__usuario_id=request.session.get("usuario_id"),
-    ).exclude(pk=activo.sucursal_id)
+    sucursales = Sucursal.objects.select_related("empresa").filter(activa=True)
+    if not request.session.get(SESSION_TODAS_SUCURSALES):
+        sucursales = sucursales.filter(
+            usuario_sucursales__usuario_id=request.session.get(SESSION_USUARIO_ID),
+        )
+    sucursales = sucursales.exclude(pk=activo.sucursal_id).order_by("nombre").distinct()
+    proyectos = ProyectoInformatica.objects.filter(activo=True).order_by("proyecto_nombre")
     errores = []
 
+    codigo_pendiente = _codigo_inventario_pendiente_activo(activo)
+    val_codigo_inventario = "" if codigo_pendiente else activo.codigo_inventario
+    val_numero_serie = activo.numero_serie or ""
+    val_folio_factura_ic = ""
+    val_proyecto_informatica_id = str(activo.proyecto_informatica_id or "")
+
     if request.method == "POST":
+        val_codigo_inventario = (request.POST.get("codigo_inventario") or "").strip()
+        val_numero_serie = (request.POST.get("numero_serie") or "").strip()
+        val_folio_factura_ic = (request.POST.get("folio_factura_ic") or "").strip()
+        val_proyecto_informatica_id = (request.POST.get("proyecto_informatica") or "").strip()
         sucursal_destino_id = request.POST.get("sucursal_destino")
         sucursal_destino = Sucursal.objects.select_related("empresa").filter(
             pk=sucursal_destino_id,
             activa=True,
         ).first()
+        proyecto_informatica = None
+        if val_proyecto_informatica_id:
+            try:
+                proyecto_informatica = ProyectoInformatica.objects.filter(
+                    pk=int(val_proyecto_informatica_id),
+                    activo=True,
+                ).first()
+            except ValueError:
+                proyecto_informatica = None
+
+            if proyecto_informatica is None:
+                errores.append("Selecciona un proyecto de Informatica activo.")
+
+        if not val_codigo_inventario:
+            errores.append("Ingresa el codigo de inventario antes de entregar el activo.")
+        elif val_codigo_inventario.startswith(CODIGO_INVENTARIO_PENDIENTE_PREFIX):
+            errores.append("Ingresa un codigo de inventario definitivo.")
+        elif ActivoFijo.objects.filter(codigo_inventario=val_codigo_inventario).exclude(pk=activo.pk).exists():
+            errores.append(f"El codigo de inventario '{val_codigo_inventario}' ya existe.")
+
+        if not val_numero_serie:
+            errores.append("Ingresa el numero de serie antes de entregar el activo.")
+
+        if not val_folio_factura_ic:
+            errores.append("Ingresa el folio de la Factura Intercompany.")
+        elif len(val_folio_factura_ic) > 30:
+            errores.append("El folio de la Factura Intercompany no puede superar 30 caracteres.")
 
         if not sucursal_destino:
             errores.append("Selecciona una sucursal destino activa.")
@@ -67,12 +174,12 @@ def traspasar_activo_fijo(request, activo_pk):
             errores.append("La sucursal destino debe ser distinta a la sucursal actual.")
         elif sucursal_destino.empresa_id == activo.sucursal.empresa_id:
             errores.append(
-                "Para facturación intercompany, la sucursal destino debe pertenecer a otra empresa."
+                "Para facturacion intercompany, la sucursal destino debe pertenecer a otra empresa."
             )
 
         if not compra_item or not compra:
             errores.append(
-                "Este activo no tiene una recepción de compra asociada para generar factura intercompany."
+                "Este activo no tiene una recepcion de compra asociada para generar factura intercompany."
             )
 
         if not errores:
@@ -80,7 +187,7 @@ def traspasar_activo_fijo(request, activo_pk):
                 empresa_emisora=activo.sucursal.empresa,
                 empresa_receptora=sucursal_destino.empresa,
                 compra_origen=compra,
-                folio=_folio_factura_ic_activo(activo),
+                folio=val_folio_factura_ic,
                 fecha_emision=date_cls.today(),
                 moneda=compra.moneda,
                 recargo_porcentaje=Decimal("5.00"),
@@ -105,33 +212,45 @@ def traspasar_activo_fijo(request, activo_pk):
 
             if not errores:
                 activo.sucursal = sucursal_destino
+                activo.codigo_inventario = val_codigo_inventario
+                activo.numero_serie = val_numero_serie
+                activo.proyecto_informatica = proyecto_informatica
                 activo.estado = "En uso" if activo.estado == "En bodega" else activo.estado
                 activo.observacion = (
                     f"{activo.observacion or ''}\n"
                     f"Traspaso a {sucursal_destino.nombre}; Factura IC {factura.folio}."
                 ).strip()
-                activo.save(update_fields=["sucursal", "estado", "observacion"])
+                activo.save(update_fields=[
+                    "sucursal",
+                    "codigo_inventario",
+                    "numero_serie",
+                    "proyecto_informatica",
+                    "estado",
+                    "observacion",
+                ])
                 return redirect("factura_ic_detail", pk=factura.pk)
 
     return render(request, "activos_app/activo_traspaso_form.html", {
         "activo": activo,
+        "codigo_pendiente": codigo_pendiente,
+        "val_codigo_inventario": val_codigo_inventario,
+        "val_numero_serie": val_numero_serie,
+        "val_folio_factura_ic": val_folio_factura_ic,
+        "val_proyecto_informatica_id": val_proyecto_informatica_id,
         "compra_item": compra_item,
         "compra": compra,
+        "proyectos": proyectos,
         "sucursales": sucursales,
         "errores": errores,
     })
 
 
 @transaction.atomic
-@login_sucursal_required
+@login_usuario_required
 def registrar_activos_fijos(request, compra_pk):
     from compras_app.models import Compra
 
-    sucursal_id = sucursal_actual_id(request)
-    if not sucursal_id:
-        return redirect(f"{reverse('seleccionar_sucursal')}?next={request.get_full_path()}")
-
-    sucursal_actual = get_object_or_404(Sucursal.objects.select_related("empresa"), pk=sucursal_id, activa=True)
+    sucursal_custodia = _sucursal_custodia_informatica()
 
     compra = get_object_or_404(
         Compra.objects.select_related("razon_social", "proveedor"),
@@ -149,17 +268,14 @@ def registrar_activos_fijos(request, compra_pk):
         compra_item__compra_id=compra.pk,
     ).select_related(
         "compra_item__producto__tipo_producto",
-        "compra_item__proyecto",
     )
 
-    # Solo ítems cuyo tipo_producto contiene "activo" en el nombre
     af_recepciones = [
         r for r in recepciones
         if r.compra_item.producto_id
         and "activo" in r.compra_item.producto.tipo_producto.nombre.lower()
     ]
 
-    # Una fila por unidad recibida (cantidad entera)
     units = []
     for recepcion in af_recepciones:
         item = recepcion.compra_item
@@ -170,7 +286,7 @@ def registrar_activos_fijos(request, compra_pk):
                 "recepcion": recepcion,
                 "item": item,
                 "producto": producto,
-                "sucursal": sucursal_actual,
+                "sucursal": sucursal_custodia,
                 "prefix": f"af_{recepcion.recepcion_compra_item_id}_{i}",
                 "valor_default": item.precio_unitario,
                 "nombre_default": producto.producto_nombre,
@@ -183,54 +299,41 @@ def registrar_activos_fijos(request, compra_pk):
 
     if request.method == "POST":
         activos_a_crear = []
-        codigos_nuevos = set()
 
-        # Recuperar valores ingresados para repoblar el form en caso de error
         for unit in units:
             prefix = unit["prefix"]
             unit["val_nombre"] = request.POST.get(f"{prefix}_nombre", unit["nombre_default"])
-            unit["val_codigo"] = request.POST.get(f"{prefix}_codigo", "")
-            unit["val_serie"] = request.POST.get(f"{prefix}_serie", "")
             unit["val_fecha"] = request.POST.get(f"{prefix}_fecha", unit["fecha_default"])
             unit["val_valor"] = request.POST.get(f"{prefix}_valor", str(unit["valor_default"]))
             unit["val_estado"] = request.POST.get(f"{prefix}_estado", "En bodega")
 
             nombre = unit["val_nombre"].strip()
-            codigo = unit["val_codigo"].strip()
-            serie = unit["val_serie"].strip()
             fecha_str = unit["val_fecha"].strip()
             valor_str = unit["val_valor"].strip() or "0"
             estado = unit["val_estado"].strip()
 
-            if not nombre or not codigo or not fecha_str:
+            if not nombre or not fecha_str:
                 errores.append(
-                    f"Completa nombre, código inventario y fecha para "
-                    f"'{unit['nombre_default']}' unidad {unit['unit_num']}."
+                    f"Completa nombre y fecha para '{unit['nombre_default']}' unidad {unit['unit_num']}."
                 )
-                continue
-
-            if ActivoFijo.objects.filter(codigo_inventario=codigo).exists():
-                errores.append(f"El código de inventario '{codigo}' ya existe.")
-                continue
-
-            if codigo in codigos_nuevos:
-                errores.append(f"El código '{codigo}' está duplicado en este formulario.")
                 continue
 
             try:
                 fecha_adq = date_cls.fromisoformat(fecha_str)
                 valor = Decimal(valor_str) if valor_str else Decimal("0")
             except Exception:
-                errores.append(f"Fecha o valor inválido para '{nombre}'.")
+                errores.append(f"Fecha o valor invalido para '{nombre}'.")
                 continue
 
-            codigos_nuevos.add(codigo)
             activos_a_crear.append(ActivoFijo(
                 producto=unit["producto"],
                 sucursal=unit["sucursal"],
                 nombre_activo=nombre,
-                codigo_inventario=codigo,
-                numero_serie=serie or None,
+                codigo_inventario=_codigo_inventario_pendiente(
+                    unit["recepcion"].recepcion_compra_item_id,
+                    unit["unit_num"],
+                ),
+                numero_serie=None,
                 fecha_adquisicion=fecha_adq,
                 valor=valor,
                 estado=estado,
@@ -242,11 +345,8 @@ def registrar_activos_fijos(request, compra_pk):
                 activo.save()
             return redirect("compra_detail", pk=compra.pk)
     else:
-        # Valores iniciales para GET
         for unit in units:
             unit["val_nombre"] = unit["nombre_default"]
-            unit["val_codigo"] = ""
-            unit["val_serie"] = ""
             unit["val_fecha"] = unit["fecha_default"]
             unit["val_valor"] = str(unit["valor_default"])
             unit["val_estado"] = "En bodega"

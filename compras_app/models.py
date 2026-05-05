@@ -118,7 +118,7 @@ class Compra(models.Model):
         managed = False
 
     def __str__(self):
-        return f"Compra #{self.compra_id} - {self.folio or 'SIN FOLIO'}"
+        return f"Compra #{self.compra_id} - OC {self.folio or 'SIN FOLIO'}"
 
 class HistorialCompra(models.Model):
     historial_compra_id = models.AutoField(primary_key=True)
@@ -179,15 +179,6 @@ class CompraItem(models.Model):
 
     descripcion_libre = models.CharField(max_length=255, null=True, blank=True)
 
-    proyecto = models.ForeignKey(
-        "ProyectoInformatica",
-        on_delete=models.SET_NULL,
-        db_column="proyecto_id",
-        null=True,
-        blank=True,
-        related_name="compra_items",
-    )
-
     cantidad = models.DecimalField(max_digits=14, decimal_places=3, default=1)
     precio_unitario = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
@@ -217,7 +208,7 @@ class CompraItem(models.Model):
 # ----------- Proyectos TI ------------
 
 class ProyectoInformatica(models.Model):
-    proyecto_id = models.AutoField(primary_key=True)
+    proyecto_id = models.AutoField(primary_key=True, db_column="proyecto_informatica_id")
     proyecto_nombre = models.CharField(max_length=150)
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
