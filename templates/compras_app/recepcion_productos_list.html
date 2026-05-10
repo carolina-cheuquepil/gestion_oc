@@ -1,0 +1,70 @@
+{% extends "layouts/base.html" %}
+{% block title %}Recepcion productos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Recepcion productos</h1>
+    <div class="text-muted" style="font-size:.875rem;">
+      Facturas de proveedor con productos pendientes de recepcion.
+    </div>
+  </div>
+</div>
+
+<div class="table-wrapper">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>OC</th>
+        <th>Factura</th>
+        <th>Proveedor</th>
+        <th>Empresa</th>
+        <th class="text-end">Cant. OC</th>
+        <th class="text-end">Recibido</th>
+        <th class="text-end">Pendiente</th>
+        <th class="text-end">Lineas</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pendientes %}
+      <tr>
+        <td>
+          <a href="{% url 'compra_detail' p.compra.pk %}" class="fw-semibold text-decoration-none">
+            {{ p.compra.folio|default:"SIN FOLIO" }}
+          </a>
+          <div class="text-muted" style="font-size:.75rem;">#{{ p.compra.compra_id }}</div>
+        </td>
+        <td>
+          {% for f in p.facturas %}
+            <span class="badge bg-light text-dark border">
+              {{ f.folio|default:"SIN FOLIO" }}
+              {% if f.fecha_documento %} &middot; {{ f.fecha_documento|date:"d-m-Y" }}{% endif %}
+            </span>
+          {% empty %}
+            <span class="text-muted">-</span>
+          {% endfor %}
+        </td>
+        <td>{{ p.compra.proveedor }}</td>
+        <td>{{ p.compra.razon_social }}</td>
+        <td class="text-end">{{ p.total_oc }}</td>
+        <td class="text-end text-success fw-semibold">{{ p.total_recibido }}</td>
+        <td class="text-end text-warning fw-semibold">{{ p.total_pendiente }}</td>
+        <td class="text-end">{{ p.lineas_pendientes }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-success" href="{% url 'registrar_recepcion_productos' p.compra.pk %}">
+            <i class="bi bi-clipboard-check me-1"></i>Recepcionar
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" class="text-center text-muted py-4">
+          No hay facturas pendientes de recepcion de productos.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

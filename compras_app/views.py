@@ -36,6 +36,13 @@ class CompraViewSet(ModelViewSet):
 
 IVA_PCT = Decimal("0.19")
 RETENCION_PCT = Decimal("0.1375")
+TIPO_PRODUCTO_SERVICIO_ID = 3
+
+
+def _item_requiere_recepcion(item):
+    if not item.producto_id:
+        return True
+    return item.producto.tipo_producto_id != TIPO_PRODUCTO_SERVICIO_ID
 
 
 def _recalcular_totales_compra(compra):
@@ -121,6 +128,15 @@ def compras_frontend(request):
         compra=OuterRef("pk"),
         tipo_documento__codigo="FACT",
     )
+    oc_aprobada_sub = HistorialCompra.objects.filter(
+        compra=OuterRef("pk"),
+        tipo_documento__codigo="OC",
+        estado_documento__nombre="Aprobado",
+    )
+    contabilidad_ingresada_sub = HistorialCompra.objects.filter(
+        compra=OuterRef("pk"),
+        tipo_documento__codigo="CONT",
+    )
     compras = Compra.objects.select_related(
         "tipo_documento", "estado_documento", "proveedor", "razon_social"
     ).prefetch_related(
@@ -134,6 +150,8 @@ def compras_frontend(request):
     ).distinct().annotate(
         oc_enviada=Exists(oc_enviada_sub),
         factura_registrada=Exists(factura_registrada_sub),
+        oc_aprobada=Exists(oc_aprobada_sub),
+        contabilidad_ingresada=Exists(contabilidad_ingresada_sub),
     )
 
     compras_por_proveedor = []
@@ -288,12 +306,19 @@ def compra_create(request):
             formset.save_m2m()
             _recalcular_totales_compra(compra)
 
-            if archivo_cot and (compra.folio or "").strip():
-                enviado, error = solicitar_aprobacion_oc(compra)
-                if enviado:
-                    messages.success(request, "Compra guardada y correo de OC enviado.")
+            if request.POST.get("guardar_y_enviar_oc") == "1":
+                if archivo_cot and (compra.folio or "").strip():
+                    enviado, error = solicitar_aprobacion_oc(compra)
+                    if enviado:
+                        messages.success(request, "Compra guardada y correo de OC enviado.")
+                    else:
+                        messages.warning(request, f"Compra guardada, pero no se envio el correo de OC. {error}")
                 else:
-                    messages.warning(request, f"Compra guardada, pero no se envio el correo de OC. {error}")
+                    messages.warning(
+                        request,
+                        "Compra guardada, pero no se envio el correo de OC. Debe ingresar folio OC y adjuntar cotizacion PDF.",
+                    )
+                return redirect("compras_ui")
 
             return redirect("compra_update", pk=compra.pk)
 
@@ -675,6 +700,56 @@ def enviar_correo_oc(compra):
     return True, ""
 
 
+def enviar_correo_cobranza_factura(compra, factura, fecha_contabilidad):
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        return False, (
+            "No se pudo enviar el correo de cobranza porque faltan las variables "
+            "EMAIL_HOST_USER y/o EMAIL_HOST_PASSWORD."
+        )
+
+    destinatarios = list(settings.COBRANZA_CONTABILIDAD_EMAILS) + list(settings.COBRANZA_TESORERIA_EMAILS)
+    if not destinatarios:
+        return False, (
+            "No se pudo enviar el correo de cobranza porque faltan destinatarios. "
+            "Configura COBRANZA_CONTABILIDAD_EMAILS y/o COBRANZA_TESORERIA_EMAILS."
+        )
+
+    fecha_emision_factura = factura.fecha_documento or compra.fecha_emision
+    dias_desde_emision = (fecha_contabilidad - fecha_emision_factura).days
+    subject = f"Cobranza factura {factura.folio or compra.folio or compra.pk} - {compra.proveedor}"
+    body = render_to_string(
+        "compras_app/cobranza_factura.html",
+        {
+            "compra": compra,
+            "factura": factura,
+            "fecha_emision_factura": fecha_emision_factura,
+            "fecha_contabilidad": fecha_contabilidad,
+            "dias_desde_emision": dias_desde_emision,
+        },
+    )
+
+    email = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
+        to=destinatarios,
+    )
+    email.content_subtype = "html"
+
+    if factura.archivo:
+        filename = factura.archivo.name.split("/")[-1]
+        ctype, _ = mimetypes.guess_type(filename)
+        with factura.archivo.open("rb") as f:
+            email.attach(filename, f.read(), ctype or "application/pdf")
+
+    try:
+        email.send()
+    except (smtplib.SMTPException, OSError) as exc:
+        return False, f"No se pudo enviar el correo de cobranza: {exc}"
+
+    return True, ""
+
+
 def solicitar_aprobacion_oc(compra):
     td_oc = TipoDocumento.objects.filter(codigo="OC").first() or compra.tipo_documento
     folio_oc = compra.folio
@@ -696,7 +771,7 @@ def solicitar_aprobacion_oc(compra):
 @login_sucursal_required
 def enviar_oc(request, pk):
     if request.method != "POST":
-        return redirect("compra_detail", pk=pk)
+        return redirect("compras_ui")
 
     compra = get_object_or_404(
         Compra.objects.all(),
@@ -708,7 +783,7 @@ def enviar_oc(request, pk):
     else:
         messages.warning(request, error)
 
-    return redirect("compra_detail", pk=pk)
+    return redirect("compras_ui")
 
 
 @login_sucursal_required
@@ -721,6 +796,13 @@ def aprobar_oc(request, pk):
         pk=pk,
     )
     _sincronizar_compra_con_historial(compra)
+    if HistorialCompra.objects.filter(
+        compra=compra,
+        tipo_documento__codigo="OC",
+        estado_documento__nombre="Aprobado",
+    ).exists():
+        return JsonResponse({"ok": False, "error": "Esta OC ya esta aprobada."}, status=400)
+
     fecha_str = request.POST.get("fecha_aprobacion", "").strip()
 
     try:
@@ -738,6 +820,109 @@ def aprobar_oc(request, pk):
         folio=compra.folio,
         fecha_documento=fecha,
     )
+
+    return JsonResponse({"ok": True})
+
+
+@transaction.atomic
+@login_sucursal_required
+def registrar_ingreso_contabilidad(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False}, status=405)
+
+    compra = get_object_or_404(
+        Compra.objects.prefetch_related("historial"),
+        pk=pk,
+    )
+    _sincronizar_compra_con_historial(compra)
+
+    fecha_firma_str = request.POST.get("fecha_firma", "").strip()
+    fecha_contabilidad_str = request.POST.get("fecha_contabilidad", "").strip()
+    firmante = request.POST.get("firmante", "").strip()
+    firmantes_validos = {
+        "Sub Gerente De Informatica": "Sub Gerente De Informatica",
+        "Jefe de Soporte Informatico": "Jefe de Soporte Informatico",
+    }
+
+    if firmante not in firmantes_validos:
+        return JsonResponse({"ok": False, "error": "Debes seleccionar quien firma la factura."}, status=400)
+
+    try:
+        from datetime import date as date_cls
+        fecha_firma = date_cls.fromisoformat(fecha_firma_str)
+        fecha_contabilidad = date_cls.fromisoformat(fecha_contabilidad_str)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Debes ingresar fechas validas."}, status=400)
+
+    if fecha_contabilidad < fecha_firma:
+        return JsonResponse(
+            {"ok": False, "error": "La fecha de ingreso a contabilidad no puede ser anterior a la firma."},
+            status=400,
+        )
+
+    factura = (
+        HistorialCompra.objects
+        .filter(compra=compra, tipo_documento__codigo="FACT")
+        .order_by("-fecha_evento", "-historial_compra_id")
+        .first()
+    )
+    if not factura:
+        return JsonResponse({"ok": False, "error": "Primero debes registrar la factura recibida."}, status=400)
+
+    if not HistorialCompra.objects.filter(
+        compra=compra,
+        tipo_documento__codigo="OC",
+        estado_documento__nombre="Aprobado",
+    ).exists():
+        return JsonResponse({"ok": False, "error": "La OC debe estar aprobada antes de enviar a Contabilidad."}, status=400)
+
+    if HistorialCompra.objects.filter(compra=compra, tipo_documento__codigo="CONT").exists():
+        return JsonResponse({"ok": False, "error": "Esta compra ya fue ingresada a contabilidad."}, status=400)
+
+    if not factura.folio:
+        return JsonResponse({"ok": False, "error": "La factura debe tener folio antes de registrar la firma."}, status=400)
+
+    td_factura = TipoDocumento.objects.filter(pk=3).first()
+    if not td_factura:
+        return JsonResponse({"ok": False, "error": "No existe el tipo_documento 3 Factura."}, status=400)
+
+    estado_firmado = EstadoDocumento.objects.filter(pk=11).first()
+    if not estado_firmado:
+        return JsonResponse({"ok": False, "error": "No existe el estado_documento 11 Firmado."}, status=400)
+
+    td_contabilidad, _ = TipoDocumento.objects.get_or_create(
+        codigo="CONT",
+        defaults={"nombre": "Ingreso contabilidad"},
+    )
+    estado_contabilidad, _ = EstadoDocumento.objects.get_or_create(nombre="Ingresado a contabilidad")
+    estado_enviado_contabilidad, _ = EstadoDocumento.objects.get_or_create(nombre="Enviado a contabilidad")
+
+    _crear_historial_documento(
+        compra=compra,
+        tipo_documento=td_factura,
+        estado_documento=estado_firmado,
+        folio=factura.folio,
+        fecha_documento=fecha_firma,
+    )
+    factura_enviada = _crear_historial_documento(
+        compra=compra,
+        tipo_documento=factura.tipo_documento,
+        estado_documento=estado_enviado_contabilidad,
+        folio=factura.folio,
+        fecha_documento=factura.fecha_documento,
+        archivo=factura.archivo,
+    )
+    _crear_historial_documento(
+        compra=compra,
+        tipo_documento=td_contabilidad,
+        estado_documento=estado_contabilidad,
+        folio=factura.folio or compra.folio,
+        fecha_documento=fecha_contabilidad,
+    )
+
+    enviado, error = enviar_correo_cobranza_factura(compra, factura_enviada, fecha_contabilidad)
+    if not enviado:
+        return JsonResponse({"ok": True, "warning": error})
 
     return JsonResponse({"ok": True})
 
@@ -793,6 +978,16 @@ def cotizacion_upload(request, pk):
 @transaction.atomic
 @login_sucursal_required
 def registrar_factura_recepcion(request, pk):
+    return _registrar_factura_recepcion(request, pk, solo_recepcion=False)
+
+
+@transaction.atomic
+@login_sucursal_required
+def registrar_recepcion_productos(request, pk):
+    return _registrar_factura_recepcion(request, pk, solo_recepcion=True)
+
+
+def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
     compra = get_object_or_404(
         Compra.objects.select_related("proveedor", "razon_social", "moneda", "tipo_documento", "estado_documento")
                       .prefetch_related(
@@ -830,12 +1025,19 @@ def registrar_factura_recepcion(request, pk):
 
             nuevas_recepciones = []
             for item in items:
+                if not _item_requiere_recepcion(item):
+                    continue
                 qty_str = request.POST.get(f"recepcion_cantidad_{item.compra_item_id}", "").strip()
                 obs_str = request.POST.get(f"recepcion_obs_{item.compra_item_id}", "").strip()
                 if qty_str:
                     try:
                         qty = Decimal(qty_str)
-                        if qty > 0:
+                        total_recibido = sum(
+                            (r.cantidad_recibida or Decimal("0.000"))
+                            for r in item.recepciones.all()
+                        )
+                        pendiente = (item.cantidad or Decimal("0.000")) - total_recibido
+                        if qty > 0 and qty <= pendiente:
                             rec = RecepcionCompraItem.objects.create(
                                 compra_item=item,
                                 cantidad_recibida=qty,
@@ -871,6 +1073,8 @@ def registrar_factura_recepcion(request, pk):
                     url = reverse("activos_registrar", kwargs={"compra_pk": compra.pk})
                     return redirect(f"{url}?recp={ids_param}")
 
+            if solo_recepcion:
+                return redirect("recepcion_productos_list")
             return redirect("compra_detail", pk=compra.pk)
     else:
         factura_form = FacturaProveedorForm()
@@ -879,11 +1083,13 @@ def registrar_factura_recepcion(request, pk):
     for item in items:
         recepciones = list(item.recepciones.all())
         total_recibido = sum(r.cantidad_recibida for r in recepciones)
+        requiere_recepcion = _item_requiere_recepcion(item)
         items_info.append({
             "item": item,
             "total_recibido": total_recibido,
-            "pendiente": item.cantidad - total_recibido,
+            "pendiente": item.cantidad - total_recibido if requiere_recepcion else Decimal("0.000"),
             "recepciones": recepciones,
+            "requiere_recepcion": requiere_recepcion,
         })
 
     facturas_registradas = list(compra.historial.filter(tipo_documento__codigo="FACT"))
@@ -893,6 +1099,61 @@ def registrar_factura_recepcion(request, pk):
         "factura_form": factura_form,
         "items_info": items_info,
         "facturas_registradas": facturas_registradas,
+        "solo_recepcion": solo_recepcion,
+    })
+
+
+@login_sucursal_required
+def recepcion_productos_list(request):
+    compras = (
+        Compra.objects.select_related("proveedor", "razon_social", "moneda")
+        .filter(historial__tipo_documento__codigo="FACT")
+        .prefetch_related(
+            Prefetch(
+                "historial",
+                queryset=HistorialCompra.objects.filter(tipo_documento__codigo="FACT"),
+                to_attr="facturas_registradas",
+            ),
+            Prefetch(
+                "items",
+                queryset=CompraItem.objects.select_related("producto__tipo_producto").prefetch_related("recepciones"),
+                to_attr="items_con_recepciones",
+            ),
+        )
+        .distinct()
+        .order_by("-compra_id")
+    )
+
+    pendientes = []
+    for compra in compras:
+        total_oc = Decimal("0.000")
+        total_recibido = Decimal("0.000")
+        lineas_pendientes = 0
+
+        for item in getattr(compra, "items_con_recepciones", []):
+            if not _item_requiere_recepcion(item):
+                continue
+            cantidad = item.cantidad or Decimal("0.000")
+            recibido = sum((r.cantidad_recibida or Decimal("0.000")) for r in item.recepciones.all())
+            pendiente = cantidad - recibido
+            total_oc += cantidad
+            total_recibido += recibido
+            if pendiente > 0:
+                lineas_pendientes += 1
+
+        total_pendiente = total_oc - total_recibido
+        if total_pendiente > 0:
+            pendientes.append({
+                "compra": compra,
+                "facturas": getattr(compra, "facturas_registradas", []),
+                "total_oc": total_oc,
+                "total_recibido": total_recibido,
+                "total_pendiente": total_pendiente,
+                "lineas_pendientes": lineas_pendientes,
+            })
+
+    return render(request, "compras_app/recepcion_productos_list.html", {
+        "pendientes": pendientes,
     })
 
 

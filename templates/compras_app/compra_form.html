@@ -1,4 +1,4 @@
-{% extends "layouts/base.html" %}
+﻿{% extends "layouts/base.html" %}
 {% block title %}Nueva compra{% endblock %}
 
 {% block extra_css %}
@@ -16,9 +16,11 @@
 <form method="post"
       enctype="multipart/form-data"
       class="card p-4"
+      id="compra-form"
       action="{% if is_edit %}{% url 'compra_update' compra.pk %}{% else %}{% url 'compra_create' %}{% endif %}">
   
   {% csrf_token %}
+  <input type="hidden" name="guardar_y_enviar_oc" id="guardar-y-enviar-oc" value="">
 
   <!-- CABECERA -->
   {% for field in form %}
@@ -33,10 +35,10 @@
             <input type="number"
                    id="id_codigo_empresa_input"
                    class="form-control"
-                   placeholder="Código empresa"
+                   placeholder="CÃ³digo empresa"
                    min="1"
                    style="width: 130px;"
-                   title="Ingresa el código de empresa para buscar">
+                   title="Ingresa el cÃ³digo de empresa para buscar">
             <div id="codigo-feedback" class="invalid-feedback"></div>
           </div>
           <div class="col">
@@ -57,10 +59,10 @@
             <input type="number"
                    id="id_proveedor_rut_input"
                    class="form-control"
-                   placeholder="RUT numérico"
+                   placeholder="RUT numÃ©rico"
                    min="1"
                    style="width: 145px;"
-                   title="Ingresa el RUT sin dígito verificador">
+                   title="Ingresa el RUT sin dÃ­gito verificador">
             <div id="proveedor-rut-feedback" class="invalid-feedback" style="display:none;"></div>
           </div>
           <div class="col">
@@ -94,7 +96,7 @@
   <div class="row mb-3">
     <div class="col-sm-6">
       <div class="card border-0 bg-light p-3">
-        <p class="fw-semibold mb-2 small text-uppercase text-muted">Cotización</p>
+        <p class="fw-semibold mb-2 small text-uppercase text-muted">CotizaciÃ³n</p>
         <div class="mb-2">
           <label class="form-label mb-1 small">{{ form.folio_cotizacion.label }}</label>
           {{ form.folio_cotizacion }}
@@ -115,7 +117,7 @@
                   class="btn btn-outline-secondary btn-sm"
                   data-bs-toggle="modal"
                   data-bs-target="#modalSubirCotizacion">
-            <i class="bi bi-upload me-1"></i>Subir cotización
+            <i class="bi bi-upload me-1"></i>Subir cotizaciÃ³n
           </button>
         </div>
         {% else %}
@@ -203,7 +205,7 @@
           <td class="text-end">{{ f.precio_unitario }}</td>
           <td class="text-end">{{ f.descuento_porcentaje }}</td>
           <td>{{ f.afecta_iva }}</td>
-          <td class="text-end"><span class="item-subtotal text-muted">—</span></td>
+          <td class="text-end"><span class="item-subtotal text-muted">â€”</span></td>
           <td>{{ f.DELETE }}</td>
         </tr>
 
@@ -230,7 +232,7 @@
           <td><span id="total-iva-display" class="text-muted">0</span></td>
         </tr>
         <tr id="fila-retencion" class="d-none">
-          <th class="pe-4 text-danger">Retención (13,75%):</th>
+          <th class="pe-4 text-danger">RetenciÃ³n (13,75%):</th>
           <td><span id="total-retencion-display" class="text-danger">0</span></td>
         </tr>
         <tr class="border-top">
@@ -246,7 +248,7 @@
 
   
 
-  <!-- TEMPLATE VACÍO -->
+  <!-- TEMPLATE VACÃO -->
   <template id="empty-form-template">
     <tr class="item-row">
       {% for hidden in formset.empty_form.hidden_fields %}
@@ -265,7 +267,7 @@
       <td class="text-end">{{ formset.empty_form.precio_unitario }}</td>
       <td class="text-end">{{ formset.empty_form.descuento_porcentaje }}</td>
       <td>{{ formset.empty_form.afecta_iva }}</td>
-      <td class="text-end"><span class="item-subtotal text-muted">—</span></td>
+      <td class="text-end"><span class="item-subtotal text-muted">â€”</span></td>
       <td>{{ formset.empty_form.DELETE }}</td>
     </tr>
   </template>
@@ -275,9 +277,19 @@
   <!-- BOTONES -->
   <div class="row mt-4">
     <div class="col-sm-9">
+      {% if is_edit %}
       <button type="submit" class="btn btn-primary px-5">
         Guardar
       </button>
+      {% else %}
+      <button type="button"
+              class="btn btn-primary px-5"
+              id="btn-guardar-enviar-oc"
+              data-bs-toggle="modal"
+              data-bs-target="#modalEnviarOC">
+        Guardar y enviar OC
+      </button>
+      {% endif %}
 
       <a class="btn btn-outline-secondary ms-2"
          href="{% url 'compras_ui' %}">
@@ -296,17 +308,10 @@
       <button type="button"
               class="btn btn-success ms-2"
               disabled
-              title="Suba primero la cotización en PDF">
+              title="Suba primero la cotizaciÃ³n en PDF">
         <i class="bi bi-send me-1"></i>Enviar OC
       </button>
       {% endif %}
-      {% else %}
-      <button type="button"
-              class="btn btn-success ms-2"
-              disabled
-              title="Guarda la compra primero para habilitar esta acción">
-        <i class="bi bi-send me-1"></i>Enviar OC
-      </button>
       {% endif %}
     </div>
   </div>
@@ -314,13 +319,13 @@
 </form>
 
 {% if is_edit %}
-<!-- Modal subir cotización -->
+<!-- Modal subir cotizaciÃ³n -->
 <div class="modal fade" id="modalSubirCotizacion" tabindex="-1" aria-labelledby="modalSubirCotizacionLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalSubirCotizacionLabel">
-          <i class="bi bi-upload me-2"></i>Subir cotización
+          <i class="bi bi-upload me-2"></i>Subir cotizaciÃ³n
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
@@ -383,12 +388,12 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         const msgs = Object.values(data.errors).flat().map(e => e.message).join(" ");
         alerta.className = "alert alert-danger";
-        alerta.textContent = msgs || "Error al subir la cotización.";
+        alerta.textContent = msgs || "Error al subir la cotizaciÃ³n.";
         guardarBtn.disabled = false;
       }
     } catch {
       alerta.className = "alert alert-danger";
-      alerta.textContent = "Error de conexión.";
+      alerta.textContent = "Error de conexiÃ³n.";
       guardarBtn.disabled = false;
     }
   });
@@ -403,22 +408,22 @@ document.addEventListener("DOMContentLoaded", () => {
   {% csrf_token %}
 </form>
 
-<!-- Modal confirmación envío OC -->
+<!-- Modal confirmaciÃ³n envÃ­o OC -->
 <div class="modal fade" id="modalEnviarOC" tabindex="-1" aria-labelledby="modalEnviarOCLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalEnviarOCLabel">
-          <i class="bi bi-send me-2 text-success"></i>Confirmar envío de OC
+          <i class="bi bi-send me-2 text-success"></i>Confirmar envÃ­o de OC
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-3">¿Está seguro de enviar el correo de autorización para la siguiente OC?</p>
+        <p class="mb-3">Â¿EstÃ¡ seguro de enviar el correo de autorizaciÃ³n para la siguiente OC?</p>
         <table class="table table-sm table-borderless mb-0">
           <tbody>
             <tr>
-              <td class="text-muted fw-semibold" style="width:40%">N° OC</td>
+              <td class="text-muted fw-semibold" style="width:40%">NÂ° OC</td>
               <td class="fw-bold">{{ compra.folio|default:"SIN FOLIO" }}</td>
             </tr>
             <tr>
@@ -441,7 +446,55 @@ document.addEventListener("DOMContentLoaded", () => {
         <button type="button"
                 class="btn btn-success"
                 onclick="document.getElementById('form-enviar-oc').submit()">
-          <i class="bi bi-send me-1"></i>Sí, enviar
+          <i class="bi bi-send me-1"></i>SÃ­, enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if not is_edit %}
+<!-- Modal confirmacion envio OC al guardar -->
+<div class="modal fade" id="modalEnviarOC" tabindex="-1" aria-labelledby="modalEnviarOCLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEnviarOCLabel">
+          <i class="bi bi-send me-2 text-success"></i>Confirmar envio de OC
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">
+          &iquest;Esta seguro de que quiere Enviar OC N&deg;
+          <strong id="modal-oc-folio">SIN FOLIO</strong>?
+        </p>
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr>
+              <td class="text-muted fw-semibold" style="width:40%">N&deg; OC</td>
+              <td class="fw-bold" id="modal-oc-folio-row">SIN FOLIO</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold">Empresa</td>
+              <td id="modal-oc-empresa">-</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold">Proveedor</td>
+              <td id="modal-oc-proveedor">-</td>
+            </tr>
+            <tr>
+              <td class="text-muted fw-semibold">Monto total</td>
+              <td class="fw-bold" id="modal-oc-total">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="confirmar-guardar-enviar-oc">
+          <i class="bi bi-send me-1"></i>Si, enviar
         </button>
       </div>
     </div>
@@ -468,7 +521,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <input type="text" id="np-sku" class="form-control">
         </div>
         <div class="mb-3">
-          <label class="form-label">Descripción</label>
+          <label class="form-label">DescripciÃ³n</label>
           <textarea id="np-descripcion" class="form-control" rows="2"></textarea>
         </div>
         <div class="mb-3">
@@ -490,7 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
   </div>
 </div>
 
-<!-- Modal de búsqueda de productos -->
+<!-- Modal de bÃºsqueda de productos -->
 <div class="modal fade" id="modalBuscarProducto" tabindex="-1" aria-labelledby="modalBuscarProductoLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -504,7 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <input type="text"
                id="buscar-producto-input"
                class="form-control mb-3"
-               placeholder="Buscar por SKU, nombre o descripción...">
+               placeholder="Buscar por SKU, nombre o descripciÃ³n...">
         <div id="modal-sin-proveedor" class="text-muted text-center py-3 d-none">
           Selecciona primero un proveedor.
         </div>
@@ -517,7 +570,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <tr>
                 <th style="width:120px">SKU</th>
                 <th>Nombre</th>
-                <th>Descripción</th>
+                <th>DescripciÃ³n</th>
               </tr>
             </thead>
             <tbody id="modal-productos-tbody"></tbody>
@@ -529,7 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script>
-// Evitar que Enter en inputs de texto/número envíe el formulario accidentalmente
+// Evitar que Enter en inputs de texto/nÃºmero envÃ­e el formulario accidentalmente
 document.addEventListener("keydown", function (e) {
   if (e.key !== "Enter") return;
   const tag = e.target.tagName;
@@ -538,7 +591,7 @@ document.addEventListener("keydown", function (e) {
   e.preventDefault();
 });
 
-// ---------- CÁLCULO TOTAL NETO / IVA / RETENCIÓN ----------
+// ---------- CÃLCULO TOTAL NETO / IVA / RETENCIÃ“N ----------
 const TIPOS_OC  = JSON.parse(document.getElementById("tipos-oc-data")?.textContent || "[]");
 const MONEDAS   = JSON.parse(document.getElementById("monedas-data")?.textContent  || "[]");
 const IVA_PCT       = 19;
@@ -590,7 +643,7 @@ function recalcularTotales() {
         span.textContent = formatearMonto(subtotal, moneda);
         span.classList.remove("text-muted");
       } else {
-        span.textContent = "—";
+        span.textContent = "â€”";
         span.classList.add("text-muted");
       }
     }
@@ -643,6 +696,53 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+  const guardarEnviarBtn = document.getElementById("btn-guardar-enviar-oc");
+  const confirmarBtn = document.getElementById("confirmar-guardar-enviar-oc");
+  const form = document.getElementById("compra-form");
+  const enviarFlag = document.getElementById("guardar-y-enviar-oc");
+
+  if (!guardarEnviarBtn || !confirmarBtn || !form || !enviarFlag) return;
+
+  const selectedText = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return "-";
+    const opt = el.options?.[el.selectedIndex];
+    return opt && opt.value ? opt.text.trim() : "-";
+  };
+
+  guardarEnviarBtn.addEventListener("click", (e) => {
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      e.stopPropagation();
+      form.reportValidity();
+      return;
+    }
+
+    const folio = document.getElementById("id_folio")?.value.trim() || "SIN FOLIO";
+    const cotizacionArchivo = document.querySelector('input[name="cotizacion_archivo"]');
+    if (folio === "SIN FOLIO" || !cotizacionArchivo?.files?.length) {
+      e.preventDefault();
+      e.stopPropagation();
+      alert("Debe ingresar el folio OC y adjuntar la cotizacion PDF antes de enviar la OC.");
+      return;
+    }
+
+    const total = document.getElementById("total-display")?.textContent.trim() || "-";
+
+    document.getElementById("modal-oc-folio").textContent = folio;
+    document.getElementById("modal-oc-folio-row").textContent = folio;
+    document.getElementById("modal-oc-empresa").textContent = selectedText("id_razon_social");
+    document.getElementById("modal-oc-proveedor").textContent = selectedText("id_proveedor");
+    document.getElementById("modal-oc-total").textContent = total;
+  });
+
+  confirmarBtn.addEventListener("click", () => {
+    enviarFlag.value = "1";
+    form.submit();
+  });
+});
+
+document.addEventListener("DOMContentLoaded", () => {
   const addBtn = document.getElementById("add-row");
   const tbody = document.getElementById("items-tbody");
   const tpl = document.getElementById("empty-form-template");
@@ -682,11 +782,11 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch { /* silencioso */ }
     }
 
-    // Al cargar la página en modo edición, sincronizar código desde el ID seleccionado
+    // Al cargar la pÃ¡gina en modo ediciÃ³n, sincronizar cÃ³digo desde el ID seleccionado
     const initialId = $select.val();
     if (initialId) sincronizarCodigoPorId(initialId);
 
-    // Al cambiar el Select2, actualizar el input de código
+    // Al cambiar el Select2, actualizar el input de cÃ³digo
     $select.on("select2:select", function () {
       sincronizarCodigoPorId($select.val());
       codigoInput.classList.remove("is-invalid");
@@ -697,7 +797,7 @@ document.addEventListener("DOMContentLoaded", () => {
       codigoInput.value = "";
     });
 
-    // Al ingresar código y salir del campo, buscar la empresa
+    // Al ingresar cÃ³digo y salir del campo, buscar la empresa
     codigoInput.addEventListener("change", async () => {
       const codigo = codigoInput.value.trim();
       if (!codigo) {
@@ -714,7 +814,7 @@ document.addEventListener("DOMContentLoaded", () => {
           feedback.textContent = "";
         } else {
           codigoInput.classList.add("is-invalid");
-          feedback.textContent = "Código no encontrado.";
+          feedback.textContent = "CÃ³digo no encontrado.";
           $select.val(null).trigger("change");
         }
       } catch {
@@ -778,7 +878,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Sincronizar al cargar en modo edición
+    // Sincronizar al cargar en modo ediciÃ³n
     const initialId = $prov.val();
     if (initialId) {
       sincronizarDesdeId(initialId);
@@ -848,7 +948,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Inicializar spans en modo edición
+  // Inicializar spans en modo ediciÃ³n
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("select[name$='-producto']").forEach(sel => {
       if (sel.value) {
@@ -992,7 +1092,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ---------- MODAL BÚSQUEDA DE PRODUCTOS ----------
+  // ---------- MODAL BÃšSQUEDA DE PRODUCTOS ----------
   let selectObjetivo = null;
 
   function renderizarProductosModal(lista) {
@@ -1056,7 +1156,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Al terminar de abrir, enfocar el input de búsqueda
+    // Al terminar de abrir, enfocar el input de bÃºsqueda
     modalEl.addEventListener("shown.bs.modal", () => buscarInput.focus());
 
     // Filtrar al escribir
@@ -1074,7 +1174,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderizarProductosModal(filtrado);
     });
 
-    // Delegación: clic en cualquier botón lupa dentro de la tabla de items
+    // DelegaciÃ³n: clic en cualquier botÃ³n lupa dentro de la tabla de items
     document.getElementById("items-tbody").addEventListener("click", function (e) {
       const btn = e.target.closest(".lupa-btn");
       if (!btn) return;

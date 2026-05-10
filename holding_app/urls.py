@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     HoldingViewSet,
     PerfilViewSet,
+    SegmentoRedViewSet,
     SucursalViewSet,
     SucursalTelefonoViewSet,
     UsuarioViewSet,
@@ -25,6 +26,7 @@ router.register(r"holdings", HoldingViewSet, basename="holding")
 router.register(r"perfiles", PerfilViewSet, basename="perfil")
 router.register(r"sucursales", SucursalViewSet, basename="sucursal")
 router.register(r"sucursal-telefonos", SucursalTelefonoViewSet, basename="sucursal-telefono")
+router.register(r"segmentos-red", SegmentoRedViewSet, basename="segmento-red")
 router.register(r"usuarios", UsuarioViewSet, basename="usuario")
 
 urlpatterns = [

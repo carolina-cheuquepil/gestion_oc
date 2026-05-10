@@ -1,0 +1,19 @@
+<p>Estimada:</p>
+
+<p>Junto con saludar, por favor gestionar el pago de las siguientes facturas:</p>
+
+<ul>
+  
+  <li><strong>RUT Proveedor:</strong> {{ compra.proveedor.rut_completo }}</li>
+  <li><strong>Proveedor:</strong> {{ compra.proveedor }}</li>
+  <li><strong>Factura:</strong> {{ factura.folio|default:"SIN FOLIO" }}</li>
+  <li><strong>Fecha emision factura:</strong> {{ fecha_emision_factura|date:"d-m-Y" }}</li>
+  <li><strong>Empresa del Holding:</strong> {{ compra.razon_social }}</li>
+
+</ul>
+
+<p><strong>Neto:</strong> {{ compra.moneda.codigo }} {{ compra.total_neto }}</p>
+<p><strong>IVA:</strong> {{ compra.moneda.codigo }} {{ compra.total_iva }}</p>
+<p><strong>Total:</strong> {{ compra.moneda.codigo }} {{ compra.total }}</p>
+
+<p>Saludos cordiales.</p>

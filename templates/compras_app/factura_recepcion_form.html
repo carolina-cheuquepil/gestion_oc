@@ -1,18 +1,18 @@
 {% extends "layouts/base.html" %}
-{% block title %}Factura / Recepción — OC {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
+{% block title %}{% if solo_recepcion %}Recepcion productos{% else %}Factura / Recepcion{% endif %} - OC {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
 
 {% block content %}
 
 <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
   <div>
     <h4 class="mb-1 fw-bold text-dark">
-      Ingresar Factura / Recepción
+      {% if solo_recepcion %}Recepcion productos{% else %}Ingresar Factura / Recepcion{% endif %}
     </h4>
     <div class="text-muted" style="font-size:.85rem;">
       OC <strong>{{ compra.folio|default:"SIN FOLIO" }}</strong> — {{ compra.proveedor }} — {{ compra.razon_social }}
     </div>
   </div>
-  <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
+  <a class="btn btn-link btn-sm text-secondary" href="{% if solo_recepcion %}{% url 'recepcion_productos_list' %}{% else %}{% url 'compra_detail' compra.pk %}{% endif %}">
     <i class="bi bi-arrow-left me-1"></i>Volver
   </a>
 </div>
@@ -20,7 +20,8 @@
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
 
-  <!-- ── Sección 1: Factura del proveedor ── -->
+  {% if not solo_recepcion %}
+  <!-- Seccion 1: Factura del proveedor -->
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
       <div class="section-title mb-3">Factura del proveedor</div>
@@ -93,6 +94,7 @@
       </p>
     </div>
   </div>
+  {% endif %}
 
   <!-- ── Sección 2: Confirmación de recepción de ítems ── -->
   <div class="card border-0 shadow-sm mb-4">
@@ -148,13 +150,16 @@
                 {% endif %}
               </td>
               <td class="text-end align-middle">
-                {% if info.pendiente > 0 %}
+                {% if not info.requiere_recepcion %}
+                  <span class="badge bg-secondary">No requiere</span>
+                {% elif info.pendiente > 0 %}
                   <span class="text-warning fw-semibold">{{ info.pendiente }}</span>
                 {% else %}
                   <span class="badge bg-success">Completo</span>
                 {% endif %}
               </td>
               <td class="text-center align-middle">
+                {% if info.requiere_recepcion %}
                 <input
                   type="number"
                   name="recepcion_cantidad_{{ item.compra_item_id }}"
@@ -165,8 +170,12 @@
                   class="form-control form-control-sm text-end"
                   {% if info.pendiente <= 0 %}disabled{% endif %}
                 >
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
               </td>
               <td class="align-middle">
+                {% if info.requiere_recepcion %}
                 <input
                   type="text"
                   name="recepcion_obs_{{ item.compra_item_id }}"
@@ -174,6 +183,9 @@
                   placeholder="Opcional"
                   {% if info.pendiente <= 0 %}disabled{% endif %}
                 >
+                {% else %}
+                  <span class="text-muted">Servicio</span>
+                {% endif %}
               </td>
             </tr>
             {% endwith %}
@@ -193,7 +205,7 @@
     <button type="submit" class="btn btn-success px-4">
       <i class="bi bi-check2-circle me-1"></i>Guardar
     </button>
-    <a class="btn btn-link btn-sm text-secondary" href="{% url 'compra_detail' compra.pk %}">
+    <a class="btn btn-link btn-sm text-secondary" href="{% if solo_recepcion %}{% url 'recepcion_productos_list' %}{% else %}{% url 'compra_detail' compra.pk %}{% endif %}">
       Cancelar
     </a>
   </div>

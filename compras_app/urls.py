@@ -4,7 +4,8 @@ from .views import (
     factura_ic_create, factura_ic_update, factura_ic_detail, facturas_ic_frontend,
     holding_por_codigo, enviar_oc, cotizacion_upload, aprobar_oc,
     proyectos_list, proyecto_activos, proyecto_create, proyecto_update, proyecto_delete,
-    registrar_factura_recepcion,
+    registrar_factura_recepcion, recepcion_productos_list, registrar_recepcion_productos,
+    registrar_ingreso_contabilidad,
 )
 
 #FrontEnd D: Paso 4
@@ -18,6 +19,9 @@ urlpatterns = [
     path("compras/ui/<int:pk>/cotizacion/subir/", cotizacion_upload, name="cotizacion_upload"),
     path("compras/ui/<int:pk>/aprobar/", aprobar_oc, name="aprobar_oc"),
     path("compras/ui/<int:pk>/factura/", registrar_factura_recepcion, name="registrar_factura_recepcion"),
+    path("compras/ui/<int:pk>/contabilidad/", registrar_ingreso_contabilidad, name="registrar_ingreso_contabilidad"),
+    path("compras/recepcion-productos/", recepcion_productos_list, name="recepcion_productos_list"),
+    path("compras/recepcion-productos/<int:pk>/", registrar_recepcion_productos, name="registrar_recepcion_productos"),
 
     path("distribucion/ui/", facturas_ic_frontend, name="facturas_ic_ui"),
     path("ditribucion/ui/nueva/", factura_ic_create, name="factura_ic_create"),

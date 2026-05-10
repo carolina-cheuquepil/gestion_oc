@@ -93,6 +93,28 @@ class SucursalTelefono(models.Model):
         return f"{tipo}{self.numero}{principal}"
 
 
+class SegmentoRed(models.Model):
+    segmento_red_id = models.AutoField(primary_key=True)
+    sucursal = models.ForeignKey(
+        Sucursal,
+        on_delete=models.CASCADE,
+        db_column="sucursal_id",
+        related_name="segmentos_red",
+    )
+    segmento = models.CharField(max_length=50)
+    segmento_nombre = models.CharField(max_length=100)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        managed = False
+        db_table = "segmento_red"
+        ordering = ["segmento", "segmento_nombre"]
+
+    def __str__(self):
+        estado = "" if self.activa else " (inactivo)"
+        return f"{self.segmento} - {self.segmento_nombre}{estado}"
+
+
 class Perfil(models.Model):
     perfil_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=50, blank=True, null=True)

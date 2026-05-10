@@ -34,7 +34,7 @@
     <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'compra_update' c.compra_id %}">
       <i class="bi bi-pencil me-1"></i>Editar
     </a>
-    {% if c.oc_enviada and c.estado_documento.nombre != "Aprobado" %}
+    {% if c.oc_enviada and not c.oc_aprobada %}
       <button type="button"
               class="btn btn-sm btn-outline-success aprobar-oc-btn"
               data-pk="{{ c.compra_id }}"
@@ -49,6 +49,16 @@
          href="{% url 'registrar_factura_recepcion' c.compra_id %}">
         <i class="bi bi-file-earmark-text me-1"></i>Ingresar factura
       </a>
+    {% endif %}
+    {% if c.factura_registrada and c.oc_aprobada and not c.contabilidad_ingresada %}
+      <button type="button"
+              class="btn btn-sm btn-outline-success despacho-contabilidad-btn"
+              data-pk="{{ c.compra_id }}"
+              data-folio="{{ c.folio|default:'SIN FOLIO' }}"
+              data-bs-toggle="modal"
+              data-bs-target="#modalDespachoContabilidad">
+        <i class="bi bi-send-check me-1"></i>Enviar a Contabilidad
+      </button>
     {% endif %}
   </td>
 </tr>

@@ -17,6 +17,22 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _load_local_env():
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_local_env()
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -146,6 +162,22 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+COBRANZA_CONTABILIDAD_EMAILS = [
+    email.strip()
+    for email in os.environ.get(
+        "COBRANZA_CONTABILIDAD_EMAILS",
+        "carolina.cheuquepil@dimarsa.cl" if DEBUG else "",
+    ).split(",")
+    if email.strip()
+]
+COBRANZA_TESORERIA_EMAILS = [
+    email.strip()
+    for email in os.environ.get(
+        "COBRANZA_TESORERIA_EMAILS",
+        "carolinacheuquepil@gmail.com" if DEBUG else "",
+    ).split(",")
+    if email.strip()
+]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")

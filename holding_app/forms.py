@@ -1,7 +1,7 @@
 #FrontEnd: Paso 1
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Direccion, Holding, Sucursal, SucursalTelefono
+from .models import Direccion, Holding, SegmentoRed, Sucursal, SucursalTelefono
 from django_select2.forms import ModelSelect2Widget
 
 class HoldingForm(forms.ModelForm):
@@ -80,6 +80,31 @@ SucursalTelefonoFormSet = inlineformset_factory(
     Sucursal,
     SucursalTelefono,
     form=SucursalTelefonoForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class SegmentoRedForm(forms.ModelForm):
+    class Meta:
+        model = SegmentoRed
+        fields = ["segmento", "segmento_nombre", "activa"]
+        labels = {
+            "segmento": "Segmento",
+            "segmento_nombre": "Nombre segmento",
+            "activa": "Activa",
+        }
+        widgets = {
+            "segmento": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: VLAN 10"}),
+            "segmento_nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Administracion"}),
+            "activa": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
+SegmentoRedFormSet = inlineformset_factory(
+    Sucursal,
+    SegmentoRed,
+    form=SegmentoRedForm,
     extra=1,
     can_delete=True,
 )
