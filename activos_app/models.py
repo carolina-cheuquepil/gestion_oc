@@ -1,6 +1,20 @@
 from django.db import models
 
 
+class Hardware(models.Model):
+    hardware_id = models.AutoField(primary_key=True)
+    hardware = models.CharField(max_length=120, unique=True)
+    sistema_operativo = models.CharField(max_length=160, null=True, blank=True)
+
+    class Meta:
+        db_table = "hardware"
+        managed = False
+        ordering = ["hardware"]
+
+    def __str__(self):
+        return self.hardware
+
+
 class RecepcionCompraItem(models.Model):
     recepcion_compra_item_id = models.AutoField(primary_key=True)
 

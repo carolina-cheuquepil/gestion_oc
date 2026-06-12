@@ -7,13 +7,13 @@
     <h2 class="mb-1">{% if is_edit %}Editar Sucursal{% else %}Nueva Sucursal{% endif %}</h2>
     <div class="text-muted" style="font-size:.85rem;">{{ holding.nombre|default:holding.razon_social }}</div>
   </div>
-  <a class="btn btn-outline-secondary" href="{% url 'holding_detail' holding.pk %}">Volver</a>
+  <a class="btn btn-outline-secondary" href="{% if is_edit %}{% url 'sucursal_detail' holding.pk sucursal.pk %}{% else %}{% url 'holding_detail' holding.pk %}{% endif %}">Volver</a>
 </div>
 
 <form method="post" class="card border-0 shadow-sm">
   {% csrf_token %}
   <div class="card-body p-4">
-    <h5 class="mb-3">Datos de sucursal</h5>
+    <h5 class="mb-3">Sucursal</h5>
 
     {% for field in sucursal_form %}
       <div class="row mb-3">
@@ -27,13 +27,34 @@
       </div>
     {% endfor %}
 
-    <hr class="my-4">
-    <h5 class="mb-3">Dirección</h5>
+    <h6 class="mt-4 mb-3 text-muted">Direccion</h6>
+
+    {% if direccion_form.non_field_errors %}
+      <div class="row mb-3">
+        <div class="col-sm-6 offset-sm-3">
+          <div class="invalid-feedback d-block">{{ direccion_form.non_field_errors }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="row mb-3">
+      <label class="col-sm-3 col-form-label" for="id_direccion_existente">Direccion existente</label>
+      <div class="col-sm-6">
+        <select class="form-select" id="id_direccion_existente" name="direccion_existente">
+          <option value="">Ingresar manualmente</option>
+          {% for direccion in direcciones %}
+            <option value="{{ direccion.pk }}" {% if direccion.pk|stringformat:"s" == direccion_existente_id %}selected{% endif %}>
+              {{ direccion }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
 
     {% for field in direccion_form %}
       <div class="row mb-3">
         <label class="col-sm-3 col-form-label">{{ field.label }}</label>
-        <div class="col-sm-6">
+        <div class="col-sm-6 direccion-manual-field">
           {{ field }}
           {% if field.errors %}
             <div class="invalid-feedback d-block">{{ field.errors }}</div>
@@ -41,6 +62,98 @@
         </div>
       </div>
     {% endfor %}
+
+    <hr class="my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Areas</h5>
+      <button class="btn btn-outline-primary btn-sm" type="button" id="add-area-row">
+        <i class="bi bi-plus-lg me-1"></i>Agregar area
+      </button>
+    </div>
+
+    {{ area_formset.management_form }}
+    {% if area_formset.non_form_errors %}
+      <div class="alert alert-danger">{{ area_formset.non_form_errors }}</div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Tipo</th>
+            <th class="text-center">Activa</th>
+            <th class="text-center">Eliminar</th>
+          </tr>
+        </thead>
+        <tbody id="area-formset-body">
+          {% for area_form in area_formset %}
+            <tr>
+              <td>
+                {% for hidden in area_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {{ area_form.area }}
+                {% if area_form.area.errors %}
+                  <div class="invalid-feedback d-block">{{ area_form.area.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ area_form.tipo }}
+                {% if area_form.tipo.errors %}
+                  <div class="invalid-feedback d-block">{{ area_form.tipo.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {{ area_form.activa }}
+                {% if area_form.activa.errors %}
+                  <div class="invalid-feedback d-block">{{ area_form.activa.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if area_form.instance.pk %}
+                  {{ area_form.DELETE }}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% if area_form.non_field_errors %}
+              <tr>
+                <td colspan="4">
+                  <div class="invalid-feedback d-block">{{ area_form.non_field_errors }}</div>
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <template id="area-empty-form-template">
+      <tr>
+        <td>
+          {% for hidden in area_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {{ area_formset.empty_form.area }}
+          {% if area_formset.empty_form.area.errors %}
+            <div class="invalid-feedback d-block">{{ area_formset.empty_form.area.errors }}</div>
+          {% endif %}
+        </td>
+        <td>
+          {{ area_formset.empty_form.tipo }}
+          {% if area_formset.empty_form.tipo.errors %}
+            <div class="invalid-feedback d-block">{{ area_formset.empty_form.tipo.errors }}</div>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {{ area_formset.empty_form.activa }}
+          {% if area_formset.empty_form.activa.errors %}
+            <div class="invalid-feedback d-block">{{ area_formset.empty_form.activa.errors }}</div>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <span class="text-muted">-</span>
+        </td>
+      </tr>
+    </template>
 
     <hr class="my-4">
     <h5 class="mb-3">Telefonos</h5>
@@ -54,6 +167,7 @@
       <table class="table table-sm align-middle">
         <thead>
           <tr>
+            <th>Area</th>
             <th>Tipo</th>
             <th>Numero</th>
             <th class="text-center">Principal</th>
@@ -65,6 +179,12 @@
             <tr>
               <td>
                 {% for hidden in telefono_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {{ telefono_form.sucursal_area }}
+                {% if telefono_form.sucursal_area.errors %}
+                  <div class="invalid-feedback d-block">{{ telefono_form.sucursal_area.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
                 {{ telefono_form.tipo_telefono }}
                 {% if telefono_form.tipo_telefono.errors %}
                   <div class="invalid-feedback d-block">{{ telefono_form.tipo_telefono.errors }}</div>
@@ -86,13 +206,13 @@
                 {% if telefono_form.instance.pk %}
                   {{ telefono_form.DELETE }}
                 {% else %}
-                  <span class="text-muted">—</span>
+                  <span class="text-muted">-</span>
                 {% endif %}
               </td>
             </tr>
             {% if telefono_form.non_field_errors %}
               <tr>
-                <td colspan="4">
+                <td colspan="5">
                   <div class="invalid-feedback d-block">{{ telefono_form.non_field_errors }}</div>
                 </td>
               </tr>
@@ -103,7 +223,7 @@
     </div>
 
     <hr class="my-4">
-    <h5 class="mb-3">Segmentos de red</h5>
+    <h5 class="mb-3">Red</h5>
 
     {{ segmento_formset.management_form }}
     {% if segmento_formset.non_form_errors %}
@@ -114,6 +234,7 @@
       <table class="table table-sm align-middle">
         <thead>
           <tr>
+            <th>Area</th>
             <th>Segmento</th>
             <th>Nombre segmento</th>
             <th class="text-center">Activa</th>
@@ -125,6 +246,12 @@
             <tr>
               <td>
                 {% for hidden in segmento_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {{ segmento_form.sucursal_area }}
+                {% if segmento_form.sucursal_area.errors %}
+                  <div class="invalid-feedback d-block">{{ segmento_form.sucursal_area.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
                 {{ segmento_form.segmento }}
                 {% if segmento_form.segmento.errors %}
                   <div class="invalid-feedback d-block">{{ segmento_form.segmento.errors }}</div>
@@ -146,13 +273,13 @@
                 {% if segmento_form.instance.pk %}
                   {{ segmento_form.DELETE }}
                 {% else %}
-                  <span class="text-muted">â€”</span>
+                  <span class="text-muted">-</span>
                 {% endif %}
               </td>
             </tr>
             {% if segmento_form.non_field_errors %}
               <tr>
-                <td colspan="4">
+                <td colspan="5">
                   <div class="invalid-feedback d-block">{{ segmento_form.non_field_errors }}</div>
                 </td>
               </tr>
@@ -165,7 +292,7 @@
     <div class="row mt-4">
       <div class="col-sm-9 offset-sm-3">
         <button class="btn btn-primary px-5" type="submit">Guardar</button>
-        <a class="btn btn-outline-secondary ms-2" href="{% url 'holding_detail' holding.pk %}">Cancelar</a>
+        <a class="btn btn-outline-secondary ms-2" href="{% if is_edit %}{% url 'sucursal_detail' holding.pk sucursal.pk %}{% else %}{% url 'holding_detail' holding.pk %}{% endif %}">Cancelar</a>
         {% if is_edit %}
           <a class="btn btn-outline-danger ms-2" href="{% url 'sucursal_delete' holding.pk sucursal.pk %}">Eliminar</a>
         {% endif %}
@@ -173,4 +300,41 @@
     </div>
   </div>
 </form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const direccionSelect = document.getElementById("id_direccion_existente");
+    const direccionInputs = document.querySelectorAll(".direccion-manual-field input");
+    const addAreaButton = document.getElementById("add-area-row");
+    const areaBody = document.getElementById("area-formset-body");
+    const areaTemplate = document.getElementById("area-empty-form-template");
+    const totalFormsInput = document.getElementById("id_areas-TOTAL_FORMS");
+
+    function syncDireccionManualFields() {
+      if (!direccionSelect) {
+        return;
+      }
+      const usingExisting = Boolean(direccionSelect.value);
+      direccionInputs.forEach(function (input) {
+        input.disabled = usingExisting;
+      });
+    }
+
+    if (direccionSelect) {
+      direccionSelect.addEventListener("change", syncDireccionManualFields);
+      syncDireccionManualFields();
+    }
+
+    if (!addAreaButton || !areaBody || !areaTemplate || !totalFormsInput) {
+      return;
+    }
+
+    addAreaButton.addEventListener("click", function () {
+      const formIndex = Number(totalFormsInput.value);
+      const rowHtml = areaTemplate.innerHTML.replaceAll("__prefix__", formIndex);
+      areaBody.insertAdjacentHTML("beforeend", rowHtml);
+      totalFormsInput.value = formIndex + 1;
+    });
+  });
+</script>
 {% endblock %}

@@ -1,7 +1,7 @@
 #FrontEnd: Paso 1
 from django import forms
-from django.forms import inlineformset_factory
-from .models import Direccion, Holding, SegmentoRed, Sucursal, SucursalTelefono
+from django.forms import BaseInlineFormSet, inlineformset_factory
+from .models import Direccion, Holding, SegmentoRed, Sucursal, SucursalArea, SucursalTelefono
 from django_select2.forms import ModelSelect2Widget
 
 class HoldingForm(forms.ModelForm):
@@ -38,10 +38,16 @@ class SucursalForm(forms.ModelForm):
 class DireccionForm(forms.ModelForm):
     class Meta:
         model = Direccion
-        fields = ["calle", "numero", "ciudad", "comuna", "region"]
+        fields = ["calle", "numero", "complemento", "ciudad", "comuna", "region"]
         widgets = {
             "calle": forms.TextInput(attrs={"class": "form-control"}),
             "numero": forms.TextInput(attrs={"class": "form-control"}),
+            "complemento": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Depto., oficina, local, piso...",
+                }
+            ),
             "ciudad": forms.TextInput(attrs={"class": "form-control"}),
             "comuna": forms.TextInput(attrs={"class": "form-control"}),
             "region": forms.TextInput(attrs={"class": "form-control"}),
@@ -63,23 +69,73 @@ class DireccionForm(forms.ModelForm):
 class SucursalTelefonoForm(forms.ModelForm):
     class Meta:
         model = SucursalTelefono
-        fields = ["tipo_telefono", "numero", "principal"]
+        fields = ["sucursal_area", "tipo_telefono", "numero", "principal"]
         labels = {
+            "sucursal_area": "Area",
             "tipo_telefono": "Tipo de telefono",
             "numero": "Numero",
             "principal": "Principal",
         }
         widgets = {
+            "sucursal_area": forms.Select(attrs={"class": "form-select"}),
             "tipo_telefono": forms.TextInput(attrs={"class": "form-control", "placeholder": "Fijo, WhatsApp, central..."}),
             "numero": forms.TextInput(attrs={"class": "form-control"}),
             "principal": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
 
+class SucursalTelefonoFormSetBase(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        area_qs = SucursalArea.objects.none()
+        if self.instance and self.instance.pk:
+            area_qs = SucursalArea.objects.filter(sucursal=self.instance).order_by("tipo", "area")
+        for form in self.forms:
+            if "sucursal_area" in form.fields:
+                form.fields["sucursal_area"].queryset = area_qs
+
+    def clean(self):
+        super().clean()
+        if not self.instance or not self.instance.pk:
+            return
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data") or form.cleaned_data.get("DELETE"):
+                continue
+            sucursal_area = form.cleaned_data.get("sucursal_area")
+            if sucursal_area and sucursal_area.sucursal_id != self.instance.pk:
+                form.add_error("sucursal_area", "El area debe pertenecer a esta sucursal.")
+
+
 SucursalTelefonoFormSet = inlineformset_factory(
     Sucursal,
     SucursalTelefono,
     form=SucursalTelefonoForm,
+    formset=SucursalTelefonoFormSetBase,
+    extra=1,
+    can_delete=True,
+)
+
+
+class SucursalAreaForm(forms.ModelForm):
+    class Meta:
+        model = SucursalArea
+        fields = ["area", "tipo", "activa"]
+        labels = {
+            "area": "Area",
+            "tipo": "Tipo",
+            "activa": "Activa",
+        }
+        widgets = {
+            "area": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Ventas, Piso 2, Bodega central"}),
+            "tipo": forms.TextInput(attrs={"class": "form-control", "placeholder": "Piso, Area, Bodega, Departamento"}),
+            "activa": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
+SucursalAreaFormSet = inlineformset_factory(
+    Sucursal,
+    SucursalArea,
+    form=SucursalAreaForm,
     extra=1,
     can_delete=True,
 )
@@ -88,23 +144,48 @@ SucursalTelefonoFormSet = inlineformset_factory(
 class SegmentoRedForm(forms.ModelForm):
     class Meta:
         model = SegmentoRed
-        fields = ["segmento", "segmento_nombre", "activa"]
+        fields = ["sucursal_area", "segmento", "segmento_nombre", "activa"]
         labels = {
+            "sucursal_area": "Area",
             "segmento": "Segmento",
             "segmento_nombre": "Nombre segmento",
             "activa": "Activa",
         }
         widgets = {
+            "sucursal_area": forms.Select(attrs={"class": "form-select"}),
             "segmento": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: VLAN 10"}),
             "segmento_nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Administracion"}),
             "activa": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
 
+class SegmentoRedFormSetBase(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        area_qs = SucursalArea.objects.none()
+        if self.instance and self.instance.pk:
+            area_qs = SucursalArea.objects.filter(sucursal=self.instance).order_by("tipo", "area")
+        for form in self.forms:
+            if "sucursal_area" in form.fields:
+                form.fields["sucursal_area"].queryset = area_qs
+
+    def clean(self):
+        super().clean()
+        if not self.instance or not self.instance.pk:
+            return
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data") or form.cleaned_data.get("DELETE"):
+                continue
+            sucursal_area = form.cleaned_data.get("sucursal_area")
+            if sucursal_area and sucursal_area.sucursal_id != self.instance.pk:
+                form.add_error("sucursal_area", "El area debe pertenecer a esta sucursal.")
+
+
 SegmentoRedFormSet = inlineformset_factory(
     Sucursal,
     SegmentoRed,
     form=SegmentoRedForm,
+    formset=SegmentoRedFormSetBase,
     extra=1,
     can_delete=True,
 )

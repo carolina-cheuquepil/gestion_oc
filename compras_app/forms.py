@@ -272,24 +272,30 @@ class CotizacionUploadForm(forms.ModelForm):
 
 
 class FacturaProveedorForm(forms.Form):
-    folio_factura = forms.CharField(
-        max_length=30,
-        required=False,
-        label="Folio factura",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-    )
     fecha_factura = forms.DateField(
         required=False,
-        label="Fecha factura",
+        label="Fecha factura recibida",
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
-    archivo_factura = forms.FileField(
+    folio_factura = forms.CharField(
         required=False,
-        label="Archivo factura",
-        widget=forms.ClearableFileInput(attrs={"class": "form-control"}),
+        max_length=30,
+        label="Folio factura",
+        widget=forms.TextInput(attrs={"class": "form-control", "maxlength": 30}),
     )
     observacion_factura = forms.CharField(
         required=False,
         label="Observación",
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha_factura = cleaned_data.get("fecha_factura")
+        folio_factura = (cleaned_data.get("folio_factura") or "").strip()
+        if fecha_factura and not folio_factura:
+            self.add_error("folio_factura", "Debes ingresar el folio de la factura.")
+        if folio_factura and not fecha_factura:
+            self.add_error("fecha_factura", "Debes ingresar la fecha de la factura.")
+        cleaned_data["folio_factura"] = folio_factura
+        return cleaned_data

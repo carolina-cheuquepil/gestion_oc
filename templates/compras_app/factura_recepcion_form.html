@@ -38,7 +38,6 @@
             <tr>
               <th>Folio</th>
               <th>Fecha</th>
-              <th>Archivo</th>
             </tr>
           </thead>
           <tbody>
@@ -46,13 +45,6 @@
             <tr>
               <td>{{ f.folio|default:"—" }}</td>
               <td>{{ f.fecha_documento|date:"d-m-Y"|default:"—" }}</td>
-              <td>
-                {% if f.archivo %}
-                  <a href="{{ f.archivo.url }}" target="_blank" class="text-primary">Ver archivo</a>
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -62,13 +54,6 @@
 
       <div class="row g-3">
         <div class="col-12 col-md-4">
-          <label class="form-label fw-semibold">{{ factura_form.folio_factura.label }}</label>
-          {{ factura_form.folio_factura }}
-          {% if factura_form.folio_factura.errors %}
-            <div class="invalid-feedback d-block">{{ factura_form.folio_factura.errors.0 }}</div>
-          {% endif %}
-        </div>
-        <div class="col-12 col-md-4">
           <label class="form-label fw-semibold">{{ factura_form.fecha_factura.label }}</label>
           {{ factura_form.fecha_factura }}
           {% if factura_form.fecha_factura.errors %}
@@ -76,10 +61,10 @@
           {% endif %}
         </div>
         <div class="col-12 col-md-4">
-          <label class="form-label fw-semibold">{{ factura_form.archivo_factura.label }}</label>
-          {{ factura_form.archivo_factura }}
-          {% if factura_form.archivo_factura.errors %}
-            <div class="invalid-feedback d-block">{{ factura_form.archivo_factura.errors.0 }}</div>
+          <label class="form-label fw-semibold">{{ factura_form.folio_factura.label }}</label>
+          {{ factura_form.folio_factura }}
+          {% if factura_form.folio_factura.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.folio_factura.errors.0 }}</div>
           {% endif %}
         </div>
         <div class="col-12">
@@ -90,7 +75,7 @@
 
       <p class="text-muted mt-2 mb-0" style="font-size:.8rem;">
         <i class="bi bi-info-circle me-1"></i>
-        Si la factura aún no ha llegado, deja estos campos vacíos y solo confirma la recepción de ítems.
+        Si la factura aún no ha llegado, deja la fecha vacía y solo confirma la recepción de ítems.
       </p>
     </div>
   </div>

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Perfil, SegmentoRed, Sucursal, SucursalTelefono, Usuario
+from .models import Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalTelefono, Usuario
 
 
 @admin.register(Sucursal)
@@ -11,16 +11,37 @@ class SucursalAdmin(admin.ModelAdmin):
 
 @admin.register(SucursalTelefono)
 class SucursalTelefonoAdmin(admin.ModelAdmin):
-    list_display = ("sucursal_telefono_id", "sucursal", "tipo_telefono", "numero", "principal")
-    list_filter = ("principal", "tipo_telefono")
-    search_fields = ("numero", "tipo_telefono", "sucursal__nombre", "sucursal__codigo_sucursal")
+    list_display = ("sucursal_telefono_id", "sucursal", "sucursal_area", "tipo_telefono", "numero", "principal")
+    list_filter = ("principal", "tipo_telefono", "sucursal_area__tipo")
+    search_fields = (
+        "numero",
+        "tipo_telefono",
+        "sucursal__nombre",
+        "sucursal__codigo_sucursal",
+        "sucursal_area__area",
+        "sucursal_area__tipo",
+    )
+
+
+@admin.register(SucursalArea)
+class SucursalAreaAdmin(admin.ModelAdmin):
+    list_display = ("sucursal_area_id", "sucursal", "area", "tipo", "activa")
+    list_filter = ("activa", "tipo", "sucursal__empresa")
+    search_fields = ("area", "tipo", "sucursal__nombre", "sucursal__codigo_sucursal")
 
 
 @admin.register(SegmentoRed)
 class SegmentoRedAdmin(admin.ModelAdmin):
-    list_display = ("segmento_red_id", "sucursal", "segmento", "segmento_nombre", "activa")
-    list_filter = ("activa", "sucursal__empresa")
-    search_fields = ("segmento", "segmento_nombre", "sucursal__nombre", "sucursal__codigo_sucursal")
+    list_display = ("segmento_red_id", "sucursal", "sucursal_area", "segmento", "segmento_nombre", "activa")
+    list_filter = ("activa", "sucursal__empresa", "sucursal_area__tipo")
+    search_fields = (
+        "segmento",
+        "segmento_nombre",
+        "sucursal__nombre",
+        "sucursal__codigo_sucursal",
+        "sucursal_area__area",
+        "sucursal_area__tipo",
+    )
 
 
 @admin.register(Perfil)

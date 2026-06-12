@@ -70,6 +70,10 @@
           <label class="form-label">Fecha firma factura <span class="text-danger">*</span></label>
           <input type="date" id="contabilidad-fecha-firma" class="form-control">
         </div>
+        <div class="mb-3">
+          <label class="form-label">Factura firmada <span class="text-danger">*</span></label>
+          <input type="file" id="contabilidad-archivo-firma" class="form-control">
+        </div>
         <div class="mb-0">
           <label class="form-label">Fecha ingreso a Contabilidad <span class="text-danger">*</span></label>
           <input type="date" id="contabilidad-fecha-ingreso" class="form-control">
@@ -79,6 +83,38 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-success" id="contabilidad-guardar-btn">
           <i class="bi bi-send-check me-1"></i>Confirmar despacho
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal pago -->
+<div class="modal fade" id="modalPago" tabindex="-1" aria-labelledby="modalPagoLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalPagoLabel">
+          <i class="bi bi-cash-coin me-2 text-success"></i>Ingresar pago
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="pago-alerta" class="alert d-none mb-3"></div>
+        <p class="mb-3">Documento: <strong id="pago-folio"></strong></p>
+        <div class="mb-3">
+          <label class="form-label">Fecha de pago <span class="text-danger">*</span></label>
+          <input type="date" id="pago-fecha" class="form-control">
+        </div>
+        <div class="mb-0">
+          <label class="form-label">Comprobante de pago</label>
+          <input type="file" id="pago-archivo" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="pago-guardar-btn">
+          <i class="bi bi-cash-coin me-1"></i>Confirmar pago
         </button>
       </div>
     </div>
@@ -167,11 +203,70 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+  const modalEl = document.getElementById("modalPago");
+  const guardarBtn = document.getElementById("pago-guardar-btn");
+  const alerta = document.getElementById("pago-alerta");
+  const fechaInput = document.getElementById("pago-fecha");
+  const archivoInput = document.getElementById("pago-archivo");
+  let comprapk = null;
+
+  document.querySelectorAll(".pago-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      comprapk = btn.dataset.pk;
+      document.getElementById("pago-folio").textContent = btn.dataset.folio;
+      fechaInput.value = "";
+      archivoInput.value = "";
+      alerta.className = "alert d-none";
+      alerta.textContent = "";
+      guardarBtn.disabled = false;
+    });
+  });
+
+  guardarBtn.addEventListener("click", async () => {
+    const fecha = fechaInput.value;
+    if (!fecha) {
+      alerta.className = "alert alert-warning";
+      alerta.textContent = "Debes ingresar la fecha de pago.";
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+    fd.append("fecha_pago", fecha);
+    if (archivoInput.files.length) {
+      fd.append("archivo", archivoInput.files[0]);
+    }
+
+    guardarBtn.disabled = true;
+    try {
+      const url = "{% url 'registrar_pago' 0 %}".replace("/0/", `/${comprapk}/`);
+      const res = await fetch(url, { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.ok) {
+        bootstrap.Modal.getInstance(modalEl).hide();
+        window.location.reload();
+      } else {
+        alerta.className = "alert alert-danger";
+        alerta.textContent = data.error || "Error al registrar el pago.";
+        guardarBtn.disabled = false;
+      }
+    } catch {
+      alerta.className = "alert alert-danger";
+      alerta.textContent = "Error de conexiÃ³n.";
+      guardarBtn.disabled = false;
+    }
+  });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
   const modalEl = document.getElementById("modalDespachoContabilidad");
   const guardarBtn = document.getElementById("contabilidad-guardar-btn");
   const alerta = document.getElementById("contabilidad-alerta");
   const firmanteInput = document.getElementById("contabilidad-firmante");
   const fechaFirmaInput = document.getElementById("contabilidad-fecha-firma");
+  const archivoFirmaInput = document.getElementById("contabilidad-archivo-firma");
   const fechaIngresoInput = document.getElementById("contabilidad-fecha-ingreso");
   let comprapk = null;
 
@@ -181,6 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("contabilidad-folio").textContent = btn.dataset.folio;
       firmanteInput.value = "Sub Gerente De Informatica";
       fechaFirmaInput.value = "";
+      archivoFirmaInput.value = "";
       fechaIngresoInput.value = "";
       alerta.className = "alert d-none";
       alerta.textContent = "";
@@ -196,6 +292,11 @@ document.addEventListener("DOMContentLoaded", () => {
       alerta.textContent = "Debes ingresar la fecha de firma y la fecha de ingreso a Contabilidad.";
       return;
     }
+    if (!archivoFirmaInput.files.length) {
+      alerta.className = "alert alert-warning";
+      alerta.textContent = "Debes subir la factura firmada.";
+      return;
+    }
     if (fechaIngreso < fechaFirma) {
       alerta.className = "alert alert-warning";
       alerta.textContent = "La fecha de ingreso a Contabilidad no puede ser anterior a la firma.";
@@ -206,6 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fd.append("csrfmiddlewaretoken", "{{ csrf_token }}");
     fd.append("firmante", firmanteInput.value);
     fd.append("fecha_firma", fechaFirma);
+    fd.append("archivo_firma", archivoFirmaInput.files[0]);
     fd.append("fecha_contabilidad", fechaIngreso);
 
     guardarBtn.disabled = true;

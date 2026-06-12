@@ -135,7 +135,17 @@ def compras_frontend(request):
     )
     contabilidad_ingresada_sub = HistorialCompra.objects.filter(
         compra=OuterRef("pk"),
+        tipo_documento__codigo="EMAIL",
+        estado_documento__nombre__iexact="Cobrado",
+    )
+    contabilidad_legacy_sub = HistorialCompra.objects.filter(
+        compra=OuterRef("pk"),
         tipo_documento__codigo="CONT",
+    )
+    pago_registrado_sub = HistorialCompra.objects.filter(
+        compra=OuterRef("pk"),
+        tipo_documento_id=5,
+        estado_documento_id=7,
     )
     compras = Compra.objects.select_related(
         "tipo_documento", "estado_documento", "proveedor", "razon_social"
@@ -152,6 +162,8 @@ def compras_frontend(request):
         factura_registrada=Exists(factura_registrada_sub),
         oc_aprobada=Exists(oc_aprobada_sub),
         contabilidad_ingresada=Exists(contabilidad_ingresada_sub),
+        contabilidad_legacy_ingresada=Exists(contabilidad_legacy_sub),
+        pago_registrado=Exists(pago_registrado_sub),
     )
 
     compras_por_proveedor = []
@@ -166,6 +178,7 @@ def compras_frontend(request):
             else None
         )
         _sincronizar_compra_con_historial(compra, historial=compra.ultimo_historial, save=False)
+        compra.contabilidad_ingresada = compra.contabilidad_ingresada or compra.contabilidad_legacy_ingresada
         if not compras_por_proveedor or compras_por_proveedor[-1]["proveedor"] != compra.proveedor:
             compras_por_proveedor.append({
                 "proveedor": compra.proveedor,
@@ -747,6 +760,25 @@ def enviar_correo_cobranza_factura(compra, factura, fecha_contabilidad):
     except (smtplib.SMTPException, OSError) as exc:
         return False, f"No se pudo enviar el correo de cobranza: {exc}"
 
+    td_correo = (
+        TipoDocumento.objects.filter(pk=4).first()
+        or TipoDocumento.objects.filter(codigo="EMAIL").first()
+        or TipoDocumento.objects.create(codigo="EMAIL", nombre="Correo")
+    )
+    estado_cobrado = (
+        EstadoDocumento.objects.filter(pk=9).first()
+        or EstadoDocumento.objects.filter(nombre__iexact="Cobrado").first()
+        or EstadoDocumento.objects.create(nombre="Cobrado")
+    )
+
+    _crear_historial_documento(
+        compra=compra,
+        tipo_documento=td_correo,
+        estado_documento=estado_cobrado,
+        folio=factura.folio or compra.folio,
+        fecha_documento=timezone.now().date(),
+    )
+
     return True, ""
 
 
@@ -758,13 +790,18 @@ def solicitar_aprobacion_oc(compra):
         return False, error
 
     estado_espera = EstadoDocumento.objects.get(nombre="En espera")
-    _crear_historial_documento(
+    if not HistorialCompra.objects.filter(
         compra=compra,
         tipo_documento=td_oc,
         estado_documento=estado_espera,
-        folio=folio_oc,
-        fecha_documento=timezone.now().date(),
-    )
+    ).exists():
+        _crear_historial_documento(
+            compra=compra,
+            tipo_documento=td_oc,
+            estado_documento=estado_espera,
+            folio=folio_oc,
+            fecha_documento=timezone.now().date(),
+        )
     return True, ""
 
 
@@ -859,7 +896,6 @@ def registrar_ingreso_contabilidad(request, pk):
             {"ok": False, "error": "La fecha de ingreso a contabilidad no puede ser anterior a la firma."},
             status=400,
         )
-
     factura = (
         HistorialCompra.objects
         .filter(compra=compra, tipo_documento__codigo="FACT")
@@ -868,6 +904,8 @@ def registrar_ingreso_contabilidad(request, pk):
     )
     if not factura:
         return JsonResponse({"ok": False, "error": "Primero debes registrar la factura recibida."}, status=400)
+    if not factura.folio:
+        return JsonResponse({"ok": False, "error": "La factura recibida debe tener folio antes de enviarla a Contabilidad."}, status=400)
 
     if not HistorialCompra.objects.filter(
         compra=compra,
@@ -876,11 +914,16 @@ def registrar_ingreso_contabilidad(request, pk):
     ).exists():
         return JsonResponse({"ok": False, "error": "La OC debe estar aprobada antes de enviar a Contabilidad."}, status=400)
 
-    if HistorialCompra.objects.filter(compra=compra, tipo_documento__codigo="CONT").exists():
+    if HistorialCompra.objects.filter(
+        compra=compra,
+        tipo_documento__codigo="EMAIL",
+        estado_documento__nombre__iexact="Cobrado",
+    ).exists():
         return JsonResponse({"ok": False, "error": "Esta compra ya fue ingresada a contabilidad."}, status=400)
 
-    if not factura.folio:
-        return JsonResponse({"ok": False, "error": "La factura debe tener folio antes de registrar la firma."}, status=400)
+    archivo_firma = request.FILES.get("archivo_firma")
+    if not archivo_firma:
+        return JsonResponse({"ok": False, "error": "Debes subir la factura firmada."}, status=400)
 
     td_factura = TipoDocumento.objects.filter(pk=3).first()
     if not td_factura:
@@ -890,11 +933,6 @@ def registrar_ingreso_contabilidad(request, pk):
     if not estado_firmado:
         return JsonResponse({"ok": False, "error": "No existe el estado_documento 11 Firmado."}, status=400)
 
-    td_contabilidad, _ = TipoDocumento.objects.get_or_create(
-        codigo="CONT",
-        defaults={"nombre": "Ingreso contabilidad"},
-    )
-    estado_contabilidad, _ = EstadoDocumento.objects.get_or_create(nombre="Ingresado a contabilidad")
     estado_enviado_contabilidad, _ = EstadoDocumento.objects.get_or_create(nombre="Enviado a contabilidad")
 
     _crear_historial_documento(
@@ -903,6 +941,7 @@ def registrar_ingreso_contabilidad(request, pk):
         estado_documento=estado_firmado,
         folio=factura.folio,
         fecha_documento=fecha_firma,
+        archivo=archivo_firma,
     )
     factura_enviada = _crear_historial_documento(
         compra=compra,
@@ -910,19 +949,68 @@ def registrar_ingreso_contabilidad(request, pk):
         estado_documento=estado_enviado_contabilidad,
         folio=factura.folio,
         fecha_documento=factura.fecha_documento,
-        archivo=factura.archivo,
+        archivo=archivo_firma,
     )
-    _crear_historial_documento(
-        compra=compra,
-        tipo_documento=td_contabilidad,
-        estado_documento=estado_contabilidad,
-        folio=factura.folio or compra.folio,
-        fecha_documento=fecha_contabilidad,
-    )
-
     enviado, error = enviar_correo_cobranza_factura(compra, factura_enviada, fecha_contabilidad)
     if not enviado:
         return JsonResponse({"ok": True, "warning": error})
+
+    return JsonResponse({"ok": True})
+
+
+@transaction.atomic
+@login_sucursal_required
+def registrar_pago(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False}, status=405)
+
+    compra = get_object_or_404(
+        Compra.objects.prefetch_related("historial"),
+        pk=pk,
+    )
+    _sincronizar_compra_con_historial(compra)
+
+    fecha_pago_str = request.POST.get("fecha_pago", "").strip()
+    try:
+        from datetime import date as date_cls
+        fecha_pago = date_cls.fromisoformat(fecha_pago_str)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Debes ingresar una fecha de pago valida."}, status=400)
+
+    contabilidad_registrada = HistorialCompra.objects.filter(
+        compra=compra,
+        tipo_documento__codigo="EMAIL",
+        estado_documento__nombre__iexact="Cobrado",
+    ).exists() or HistorialCompra.objects.filter(compra=compra, tipo_documento__codigo="CONT").exists()
+    if not contabilidad_registrada:
+        return JsonResponse({"ok": False, "error": "Primero debes enviar la factura a Contabilidad."}, status=400)
+
+    if HistorialCompra.objects.filter(compra=compra, tipo_documento_id=5, estado_documento_id=7).exists():
+        return JsonResponse({"ok": False, "error": "Esta compra ya tiene un pago registrado."}, status=400)
+
+    td_pago = TipoDocumento.objects.filter(pk=5).first()
+    if not td_pago:
+        return JsonResponse({"ok": False, "error": "No existe el tipo_documento 5 Pago."}, status=400)
+
+    estado_pagado = EstadoDocumento.objects.filter(pk=7).first()
+    if not estado_pagado:
+        return JsonResponse({"ok": False, "error": "No existe el estado_documento 7 Pagado."}, status=400)
+
+    factura = (
+        HistorialCompra.objects
+        .filter(compra=compra, tipo_documento__codigo="FACT")
+        .order_by("-fecha_evento", "-historial_compra_id")
+        .first()
+    )
+
+    _crear_historial_documento(
+        compra=compra,
+        tipo_documento=td_pago,
+        estado_documento=estado_pagado,
+        folio=(factura.folio if factura else None) or compra.folio,
+        fecha_documento=fecha_pago,
+        archivo=request.FILES.get("archivo"),
+    )
 
     return JsonResponse({"ok": True})
 
@@ -1004,11 +1092,10 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
         factura_form = FacturaProveedorForm(request.POST, request.FILES)
 
         if factura_form.is_valid():
-            folio_factura = (factura_form.cleaned_data.get("folio_factura") or "").strip()
             fecha_factura = factura_form.cleaned_data.get("fecha_factura")
-            archivo_factura = request.FILES.get("archivo_factura")
+            folio_factura = factura_form.cleaned_data.get("folio_factura")
 
-            if folio_factura or archivo_factura:
+            if fecha_factura:
                 td_fact, _ = TipoDocumento.objects.get_or_create(
                     codigo="FACT",
                     defaults={"nombre": "Factura Proveedor"},
@@ -1018,9 +1105,8 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
                     compra=compra,
                     tipo_documento=td_fact,
                     estado_documento=estado_recibido,
-                    folio=folio_factura or None,
+                    folio=folio_factura,
                     fecha_documento=fecha_factura,
-                    archivo=archivo_factura,
                 )
 
             nuevas_recepciones = []

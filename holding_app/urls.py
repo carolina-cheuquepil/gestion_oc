@@ -3,6 +3,7 @@ from .views import (
     HoldingViewSet,
     PerfilViewSet,
     SegmentoRedViewSet,
+    SucursalAreaViewSet,
     SucursalViewSet,
     SucursalTelefonoViewSet,
     UsuarioViewSet,
@@ -17,6 +18,7 @@ from .views import (
     seleccionar_sucursal,
     sucursal_create,
     sucursal_delete,
+    sucursal_detail,
     sucursal_update,
 )
 from django.urls import path
@@ -26,6 +28,7 @@ router.register(r"holdings", HoldingViewSet, basename="holding")
 router.register(r"perfiles", PerfilViewSet, basename="perfil")
 router.register(r"sucursales", SucursalViewSet, basename="sucursal")
 router.register(r"sucursal-telefonos", SucursalTelefonoViewSet, basename="sucursal-telefono")
+router.register(r"sucursal-areas", SucursalAreaViewSet, basename="sucursal-area")
 router.register(r"segmentos-red", SegmentoRedViewSet, basename="segmento-red")
 router.register(r"usuarios", UsuarioViewSet, basename="usuario")
 
@@ -39,6 +42,7 @@ urlpatterns = [
     path("holdings/ui/<int:pk>/editar/", holding_update, name="holding_update"),
     path("holdings/ui/<int:pk>/eliminar/", holding_delete, name="holding_delete"),
     path("holdings/ui/<int:empresa_pk>/sucursales/nueva/", sucursal_create, name="sucursal_create"),
+    path("holdings/ui/<int:empresa_pk>/sucursales/<int:pk>/", sucursal_detail, name="sucursal_detail"),
     path("holdings/ui/<int:empresa_pk>/sucursales/<int:pk>/editar/", sucursal_update, name="sucursal_update"),
     path("holdings/ui/<int:empresa_pk>/sucursales/<int:pk>/eliminar/", sucursal_delete, name="sucursal_delete"),
     path("holdings/buscar/", holding_buscar_codigo, name="holding_buscar_codigo"),

@@ -60,5 +60,15 @@
         <i class="bi bi-send-check me-1"></i>Enviar a Contabilidad
       </button>
     {% endif %}
+    {% if c.contabilidad_ingresada and not c.pago_registrado %}
+      <button type="button"
+              class="btn btn-sm btn-outline-success pago-btn"
+              data-pk="{{ c.compra_id }}"
+              data-folio="{{ c.ultimo_historial.folio|default:c.folio|default:'SIN FOLIO' }}"
+              data-bs-toggle="modal"
+              data-bs-target="#modalPago">
+        <i class="bi bi-cash-coin me-1"></i>Ingresar pago
+      </button>
+    {% endif %}
   </td>
 </tr>

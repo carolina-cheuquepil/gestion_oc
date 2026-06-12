@@ -22,6 +22,7 @@ class Direccion(models.Model):
     direccion_id = models.AutoField(primary_key=True)
     calle = models.CharField(max_length=255)
     numero = models.CharField(max_length=20, null=True, blank=True)
+    complemento = models.CharField(max_length=255, null=True, blank=True)
     ciudad = models.CharField(max_length=100)
     comuna = models.CharField(max_length=100, null=True, blank=True)
     region = models.CharField(max_length=100, null=True, blank=True)
@@ -34,8 +35,8 @@ class Direccion(models.Model):
         partes = [self.calle]
         if self.numero:
             partes.append(self.numero)
-        if self.comuna:
-            partes.append(self.comuna)
+        if self.complemento:
+            partes.append(self.complemento)
         if self.ciudad:
             partes.append(self.ciudad)
         return ", ".join(partes)
@@ -78,6 +79,14 @@ class SucursalTelefono(models.Model):
         db_column="sucursal_id",
         related_name="telefonos",
     )
+    sucursal_area = models.ForeignKey(
+        "SucursalArea",
+        on_delete=models.SET_NULL,
+        db_column="sucursal_area_id",
+        related_name="telefonos",
+        blank=True,
+        null=True,
+    )
     tipo_telefono = models.CharField(max_length=30, blank=True, null=True)
     numero = models.CharField(max_length=20)
     principal = models.BooleanField(default=False)
@@ -93,6 +102,29 @@ class SucursalTelefono(models.Model):
         return f"{tipo}{self.numero}{principal}"
 
 
+class SucursalArea(models.Model):
+    sucursal_area_id = models.AutoField(primary_key=True)
+    sucursal = models.ForeignKey(
+        Sucursal,
+        on_delete=models.CASCADE,
+        db_column="sucursal_id",
+        related_name="areas",
+    )
+    area = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=30, blank=True, null=True)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        managed = False
+        db_table = "sucursal_area"
+        ordering = ["tipo", "area"]
+
+    def __str__(self):
+        tipo = f"{self.tipo}: " if self.tipo else ""
+        estado = "" if self.activa else " (inactiva)"
+        return f"{tipo}{self.area}{estado}"
+
+
 class SegmentoRed(models.Model):
     segmento_red_id = models.AutoField(primary_key=True)
     sucursal = models.ForeignKey(
@@ -100,6 +132,14 @@ class SegmentoRed(models.Model):
         on_delete=models.CASCADE,
         db_column="sucursal_id",
         related_name="segmentos_red",
+    )
+    sucursal_area = models.ForeignKey(
+        SucursalArea,
+        on_delete=models.SET_NULL,
+        db_column="sucursal_area_id",
+        related_name="segmentos_red",
+        blank=True,
+        null=True,
     )
     segmento = models.CharField(max_length=50)
     segmento_nombre = models.CharField(max_length=100)

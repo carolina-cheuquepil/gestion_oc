@@ -6,7 +6,7 @@
   <div>
     <h4 class="mb-1 fw-bold text-dark">{{ holding.nombre|default:holding.razon_social }}</h4>
     <div class="text-muted" style="font-size:.85rem;">
-      Código {{ holding.codigo_empresa }} — RUT {{ holding.rut_numero }}-{{ holding.rut_dv }}
+      Codigo {{ holding.codigo_empresa }} - RUT {{ holding.rut_numero }}-{{ holding.rut_dv }}
     </div>
   </div>
   <div class="d-flex gap-2">
@@ -26,12 +26,12 @@
         <div class="text-muted fw-semibold mb-3" style="font-size:.78rem;text-transform:uppercase;">Datos empresa</div>
         <div class="row g-3">
           <div class="col-6 col-md-4">
-            <div class="text-muted small">Razón social</div>
+            <div class="text-muted small">Razon social</div>
             <div class="fw-semibold">{{ holding.razon_social }}</div>
           </div>
           <div class="col-6 col-md-4">
             <div class="text-muted small">Nombre</div>
-            <div class="fw-semibold">{{ holding.nombre|default:"—" }}</div>
+            <div class="fw-semibold">{{ holding.nombre|default:"-" }}</div>
           </div>
           <div class="col-6 col-md-4">
             <div class="text-muted small">Estado</div>
@@ -60,13 +60,15 @@
       <table class="table table-hover mb-0">
         <thead class="table-light">
           <tr>
-            <th>Código</th>
+            <th>Codigo</th>
             <th>Nombre</th>
-            <th>Telefono</th>
-            <th>Segmentos de red</th>
-            <th>Usuario vinculado</th>
+            <th>Direccion</th>
+            <th class="text-center">Telefonos</th>
+            <th class="text-center">Areas</th>
+            <th class="text-center">Segmentos</th>
+            <th class="text-center">Usuarios</th>
             <th class="text-center">Estado</th>
-            <th></th>
+            <th class="text-end">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -75,42 +77,16 @@
             <td class="fw-semibold">{{ sucursal.codigo_sucursal }}</td>
             <td>{{ sucursal.nombre }}</td>
             <td>
-              {% for telefono in sucursal.telefonos.all %}
-                <div class="mb-1">
-                  {% if telefono.tipo_telefono %}
-                    <span class="text-muted">{{ telefono.tipo_telefono }}:</span>
-                  {% endif %}
-                  {{ telefono.numero }}
-                  {% if telefono.principal %}
-                    <span class="badge bg-primary">Principal</span>
-                  {% endif %}
-                </div>
-              {% empty %}
-                <span class="text-muted">Sin telefono</span>
-              {% endfor %}
+              {% if sucursal.direccion_id %}
+                {{ sucursal.direccion }}
+              {% else %}
+                <span class="text-muted">Sin direccion</span>
+              {% endif %}
             </td>
-            <td>
-              {% for segmento in sucursal.segmentos_red.all %}
-                <div class="mb-1">
-                  <span class="fw-semibold">{{ segmento.segmento }}</span>
-                  <span class="text-muted">- {{ segmento.segmento_nombre }}</span>
-                  {% if segmento.activa %}
-                    <span class="badge bg-success">Activa</span>
-                  {% else %}
-                    <span class="badge bg-secondary">Inactiva</span>
-                  {% endif %}
-                </div>
-              {% empty %}
-                <span class="text-muted">Sin segmentos</span>
-              {% endfor %}
-            </td>
-            <td>
-              {% for usuario_sucursal in sucursal.usuarios_unicos %}
-                <div>{{ usuario_sucursal.usuario }}</div>
-              {% empty %}
-                <span class="text-muted">—</span>
-              {% endfor %}
-            </td>
+            <td class="text-center">{{ sucursal.total_telefonos }}</td>
+            <td class="text-center">{{ sucursal.total_areas }}</td>
+            <td class="text-center">{{ sucursal.total_segmentos }}</td>
+            <td class="text-center">{{ sucursal.total_usuarios }}</td>
             <td class="text-center">
               {% if sucursal.activa %}
                 <span class="badge bg-success">Activa</span>
@@ -119,6 +95,9 @@
               {% endif %}
             </td>
             <td class="text-end">
+              <a class="btn btn-sm btn-primary" href="{% url 'sucursal_detail' holding.pk sucursal.pk %}">
+                <i class="bi bi-eye me-1"></i>Ver detalle
+              </a>
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'sucursal_update' holding.pk sucursal.pk %}">
                 <i class="bi bi-pencil me-1"></i>Editar
               </a>
@@ -129,7 +108,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="text-center text-muted py-4">Sin sucursales registradas.</td>
+            <td colspan="9" class="text-center text-muted py-4">Sin sucursales registradas.</td>
           </tr>
           {% endfor %}
         </tbody>

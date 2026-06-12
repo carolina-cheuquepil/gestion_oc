@@ -5,7 +5,7 @@ from .views import (
     holding_por_codigo, enviar_oc, cotizacion_upload, aprobar_oc,
     proyectos_list, proyecto_activos, proyecto_create, proyecto_update, proyecto_delete,
     registrar_factura_recepcion, recepcion_productos_list, registrar_recepcion_productos,
-    registrar_ingreso_contabilidad,
+    registrar_ingreso_contabilidad, registrar_pago,
 )
 
 #FrontEnd D: Paso 4
@@ -20,6 +20,7 @@ urlpatterns = [
     path("compras/ui/<int:pk>/aprobar/", aprobar_oc, name="aprobar_oc"),
     path("compras/ui/<int:pk>/factura/", registrar_factura_recepcion, name="registrar_factura_recepcion"),
     path("compras/ui/<int:pk>/contabilidad/", registrar_ingreso_contabilidad, name="registrar_ingreso_contabilidad"),
+    path("compras/ui/<int:pk>/pago/", registrar_pago, name="registrar_pago"),
     path("compras/recepcion-productos/", recepcion_productos_list, name="recepcion_productos_list"),
     path("compras/recepcion-productos/<int:pk>/", registrar_recepcion_productos, name="registrar_recepcion_productos"),
 
