@@ -18,10 +18,10 @@ from .access import (
     set_todas_sucursales_session,
     sucursales_usuario,
 )
-from .models import Direccion, Holding, Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalTelefono, Usuario, UsuarioSucursal
-from .serializers import HoldingSerializer, PerfilSerializer, SegmentoRedSerializer, SucursalAreaSerializer, SucursalSerializer, SucursalTelefonoSerializer, UsuarioSerializer
+from .models import Direccion, Holding, Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalPiso, SucursalTelefono, Usuario, UsuarioSucursal
+from .serializers import HoldingSerializer, PerfilSerializer, SegmentoRedSerializer, SucursalAreaSerializer, SucursalPisoSerializer, SucursalSerializer, SucursalTelefonoSerializer, UsuarioSerializer
 from rest_framework.viewsets import ModelViewSet
-from .forms import DireccionForm, HoldingForm, SegmentoRedFormSet, SucursalAreaFormSet, SucursalForm, SucursalTelefonoFormSet
+from .forms import DireccionForm, HoldingForm, SegmentoRedFormSet, SucursalAreaFormSet, SucursalForm, SucursalPisoFormSet, SucursalTelefonoFormSet
 
 class HoldingViewSet(ModelViewSet):
     queryset = Holding.objects.all()
@@ -44,8 +44,17 @@ class SucursalTelefonoViewSet(ModelViewSet):
 
 
 class SucursalAreaViewSet(ModelViewSet):
-    queryset = SucursalArea.objects.select_related("sucursal", "sucursal__empresa").all()
+    queryset = SucursalArea.objects.select_related(
+        "sucursal_piso",
+        "sucursal_piso__sucursal",
+        "sucursal_piso__sucursal__empresa",
+    ).all()
     serializer_class = SucursalAreaSerializer
+
+
+class SucursalPisoViewSet(ModelViewSet):
+    queryset = SucursalPiso.objects.select_related("sucursal", "sucursal__empresa").all()
+    serializer_class = SucursalPisoSerializer
 
 
 class SegmentoRedViewSet(ModelViewSet):
@@ -194,7 +203,8 @@ def holding_detail(request, pk):
         .select_related("direccion")
         .annotate(
             total_telefonos=Count("telefonos", distinct=True),
-            total_areas=Count("areas", distinct=True),
+            total_areas=Count("pisos__areas", distinct=True),
+            total_pisos=Count("pisos", distinct=True),
             total_segmentos=Count("segmentos_red", distinct=True),
             total_usuarios=Count("usuario_sucursales__usuario_id", distinct=True),
         )
@@ -216,7 +226,10 @@ def sucursal_detail(request, empresa_pk, pk):
                 "telefonos",
                 queryset=SucursalTelefono.objects.select_related("sucursal_area"),
             ),
-            "areas",
+            Prefetch(
+                "pisos",
+                queryset=SucursalPiso.objects.prefetch_related("areas"),
+            ),
             Prefetch(
                 "segmentos_red",
                 queryset=SegmentoRed.objects.select_related("sucursal_area"),
@@ -232,7 +245,13 @@ def sucursal_detail(request, empresa_pk, pk):
     return render(
         request,
         "holding_app/sucursal_detail.html",
-        {"holding": holding, "sucursal": sucursal},
+        {
+            "holding": holding,
+            "sucursal": sucursal,
+            "areas": SucursalArea.objects.select_related("sucursal_piso").filter(
+                sucursal_piso__sucursal=sucursal
+            ),
+        },
     )
 
 
@@ -280,10 +299,25 @@ def _save_sucursal_forms(request, holding, sucursal=None):
         instance=sucursal_instance,
         prefix="segmentos",
     )
+    pisos_qs = (
+        SucursalPiso.objects.filter(sucursal=sucursal_instance).order_by("piso")
+        if sucursal_instance.pk
+        else SucursalPiso.objects.none()
+    )
     area_formset = SucursalAreaFormSet(
         request.POST or None,
-        instance=sucursal_instance,
+        queryset=(
+            SucursalArea.objects.filter(sucursal_piso__sucursal=sucursal_instance)
+            if sucursal_instance.pk
+            else SucursalArea.objects.none()
+        ),
         prefix="areas",
+        form_kwargs={"pisos_queryset": pisos_qs},
+    )
+    piso_formset = SucursalPisoFormSet(
+        request.POST or None,
+        instance=sucursal_instance,
+        prefix="pisos",
     )
 
     if (
@@ -294,6 +328,7 @@ def _save_sucursal_forms(request, holding, sucursal=None):
         and telefono_formset.is_valid()
         and segmento_formset.is_valid()
         and area_formset.is_valid()
+        and piso_formset.is_valid()
     ):
         with transaction.atomic():
             direccion_anterior = direccion
@@ -317,8 +352,10 @@ def _save_sucursal_forms(request, holding, sucursal=None):
             segmento_formset.instance = sucursal_obj
             segmento_formset.save()
 
-            area_formset.instance = sucursal_obj
             area_formset.save()
+
+            piso_formset.instance = sucursal_obj
+            piso_formset.save()
 
             if (
                 direccion_anterior
@@ -327,15 +364,15 @@ def _save_sucursal_forms(request, holding, sucursal=None):
             ):
                 direccion_anterior.delete()
 
-            return sucursal_obj, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset
+            return sucursal_obj, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset, piso_formset
 
-    return None, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset
+    return None, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset, piso_formset
 
 
 @login_sucursal_required
 def sucursal_create(request, empresa_pk):
     holding = get_object_or_404(Holding, pk=empresa_pk)
-    sucursal, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset = _save_sucursal_forms(request, holding)
+    sucursal, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset, piso_formset = _save_sucursal_forms(request, holding)
     if sucursal:
         return redirect("holding_detail", pk=holding.pk)
 
@@ -350,6 +387,7 @@ def sucursal_create(request, empresa_pk):
         "telefono_formset": telefono_formset,
         "segmento_formset": segmento_formset,
         "area_formset": area_formset,
+        "piso_formset": piso_formset,
         "is_edit": False,
     })
 
@@ -358,7 +396,7 @@ def sucursal_create(request, empresa_pk):
 def sucursal_update(request, empresa_pk, pk):
     holding = get_object_or_404(Holding, pk=empresa_pk)
     sucursal_obj = get_object_or_404(Sucursal, pk=pk, empresa=holding)
-    sucursal, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset = _save_sucursal_forms(request, holding, sucursal_obj)
+    sucursal, sucursal_form, direccion_form, telefono_formset, segmento_formset, area_formset, piso_formset = _save_sucursal_forms(request, holding, sucursal_obj)
     if sucursal:
         return redirect("holding_detail", pk=holding.pk)
 
@@ -377,6 +415,7 @@ def sucursal_update(request, empresa_pk, pk):
         "telefono_formset": telefono_formset,
         "segmento_formset": segmento_formset,
         "area_formset": area_formset,
+        "piso_formset": piso_formset,
         "is_edit": True,
     })
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalTelefono, Usuario
+from .models import Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalPiso, SucursalTelefono, Usuario
 
 
 @admin.register(Sucursal)
@@ -25,9 +25,22 @@ class SucursalTelefonoAdmin(admin.ModelAdmin):
 
 @admin.register(SucursalArea)
 class SucursalAreaAdmin(admin.ModelAdmin):
-    list_display = ("sucursal_area_id", "sucursal", "area", "tipo", "activa")
-    list_filter = ("activa", "tipo", "sucursal__empresa")
-    search_fields = ("area", "tipo", "sucursal__nombre", "sucursal__codigo_sucursal")
+    list_display = ("sucursal_area_id", "sucursal_piso", "area", "tipo", "activa")
+    list_filter = ("activa", "tipo", "sucursal_piso__sucursal__empresa")
+    search_fields = (
+        "area",
+        "tipo",
+        "sucursal_piso__piso",
+        "sucursal_piso__sucursal__nombre",
+        "sucursal_piso__sucursal__codigo_sucursal",
+    )
+
+
+@admin.register(SucursalPiso)
+class SucursalPisoAdmin(admin.ModelAdmin):
+    list_display = ("sucursal_piso_id", "sucursal", "piso", "activo")
+    list_filter = ("activo", "sucursal__empresa")
+    search_fields = ("piso", "sucursal__nombre", "sucursal__codigo_sucursal")
 
 
 @admin.register(SegmentoRed)

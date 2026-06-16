@@ -49,7 +49,7 @@ class SucursalUpdateTests(SimpleTestCase):
         holding = Mock(pk=3)
         sucursal = Mock(pk=27, direccion_id=9)
         get_object_or_404_mock.side_effect = [holding, sucursal]
-        forms = [Mock() for _ in range(5)]
+        forms = [Mock() for _ in range(6)]
         save_forms_mock.return_value = (None, *forms)
         order_by_mock.return_value = []
         render_mock.return_value = Mock()

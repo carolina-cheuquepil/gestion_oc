@@ -71,6 +71,12 @@
       </button>
     </div>
 
+    {% if not is_edit or not sucursal.pisos.exists %}
+      <div class="alert alert-info py-2">
+        Primero agrega y guarda al menos un piso. Luego podrás asignarle áreas.
+      </div>
+    {% endif %}
+
     {{ area_formset.management_form }}
     {% if area_formset.non_form_errors %}
       <div class="alert alert-danger">{{ area_formset.non_form_errors }}</div>
@@ -80,6 +86,7 @@
       <table class="table table-sm align-middle">
         <thead>
           <tr>
+            <th>Piso</th>
             <th>Area</th>
             <th>Tipo</th>
             <th class="text-center">Activa</th>
@@ -91,6 +98,12 @@
             <tr>
               <td>
                 {% for hidden in area_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {{ area_form.sucursal_piso }}
+                {% if area_form.sucursal_piso.errors %}
+                  <div class="invalid-feedback d-block">{{ area_form.sucursal_piso.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
                 {{ area_form.area }}
                 {% if area_form.area.errors %}
                   <div class="invalid-feedback d-block">{{ area_form.area.errors }}</div>
@@ -112,13 +125,15 @@
                 {% if area_form.instance.pk %}
                   {{ area_form.DELETE }}
                 {% else %}
-                  <span class="text-muted">-</span>
+                  <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar area">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
                 {% endif %}
               </td>
             </tr>
             {% if area_form.non_field_errors %}
               <tr>
-                <td colspan="4">
+                <td colspan="5">
                   <div class="invalid-feedback d-block">{{ area_form.non_field_errors }}</div>
                 </td>
               </tr>
@@ -132,6 +147,9 @@
       <tr>
         <td>
           {% for hidden in area_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {{ area_formset.empty_form.sucursal_piso }}
+        </td>
+        <td>
           {{ area_formset.empty_form.area }}
           {% if area_formset.empty_form.area.errors %}
             <div class="invalid-feedback d-block">{{ area_formset.empty_form.area.errors }}</div>
@@ -150,13 +168,95 @@
           {% endif %}
         </td>
         <td class="text-center">
-          <span class="text-muted">-</span>
+          <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar area">
+            <i class="bi bi-x-lg"></i>
+          </button>
         </td>
       </tr>
     </template>
 
     <hr class="my-4">
-    <h5 class="mb-3">Telefonos</h5>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Pisos</h5>
+      <button class="btn btn-outline-primary btn-sm" type="button" id="add-piso-row">
+        <i class="bi bi-plus-lg me-1"></i>Agregar piso
+      </button>
+    </div>
+
+    {{ piso_formset.management_form }}
+    {% if piso_formset.non_form_errors %}
+      <div class="alert alert-danger">{{ piso_formset.non_form_errors }}</div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Piso</th>
+            <th class="text-center">Activo</th>
+            <th class="text-center">Eliminar</th>
+          </tr>
+        </thead>
+        <tbody id="piso-formset-body">
+          {% for piso_form in piso_formset %}
+            <tr>
+              <td>
+                {% for hidden in piso_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {{ piso_form.piso }}
+                {% if piso_form.piso.errors %}
+                  <div class="invalid-feedback d-block">{{ piso_form.piso.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {{ piso_form.activo }}
+                {% if piso_form.activo.errors %}
+                  <div class="invalid-feedback d-block">{{ piso_form.activo.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if piso_form.instance.pk %}
+                  {{ piso_form.DELETE }}
+                {% else %}
+                  <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar piso">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                {% endif %}
+              </td>
+            </tr>
+            {% if piso_form.non_field_errors %}
+              <tr>
+                <td colspan="3">
+                  <div class="invalid-feedback d-block">{{ piso_form.non_field_errors }}</div>
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <template id="piso-empty-form-template">
+      <tr>
+        <td>
+          {% for hidden in piso_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {{ piso_formset.empty_form.piso }}
+        </td>
+        <td class="text-center">{{ piso_formset.empty_form.activo }}</td>
+        <td class="text-center">
+          <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar piso">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </td>
+      </tr>
+    </template>
+
+    <hr class="my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Telefonos</h5>
+      <button class="btn btn-outline-primary btn-sm" type="button" id="add-telefono-row">
+        <i class="bi bi-plus-lg me-1"></i>Agregar telefono
+      </button>
+    </div>
 
     {{ telefono_formset.management_form }}
     {% if telefono_formset.non_form_errors %}
@@ -174,7 +274,7 @@
             <th class="text-center">Eliminar</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="telefono-formset-body">
           {% for telefono_form in telefono_formset %}
             <tr>
               <td>
@@ -206,7 +306,9 @@
                 {% if telefono_form.instance.pk %}
                   {{ telefono_form.DELETE }}
                 {% else %}
-                  <span class="text-muted">-</span>
+                  <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar telefono">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
                 {% endif %}
               </td>
             </tr>
@@ -222,8 +324,30 @@
       </table>
     </div>
 
+    <template id="telefono-empty-form-template">
+      <tr>
+        <td>
+          {% for hidden in telefono_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {{ telefono_formset.empty_form.sucursal_area }}
+        </td>
+        <td>{{ telefono_formset.empty_form.tipo_telefono }}</td>
+        <td>{{ telefono_formset.empty_form.numero }}</td>
+        <td class="text-center">{{ telefono_formset.empty_form.principal }}</td>
+        <td class="text-center">
+          <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar telefono">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </td>
+      </tr>
+    </template>
+
     <hr class="my-4">
-    <h5 class="mb-3">Red</h5>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Red</h5>
+      <button class="btn btn-outline-primary btn-sm" type="button" id="add-segmento-row">
+        <i class="bi bi-plus-lg me-1"></i>Agregar red
+      </button>
+    </div>
 
     {{ segmento_formset.management_form }}
     {% if segmento_formset.non_form_errors %}
@@ -235,13 +359,14 @@
         <thead>
           <tr>
             <th>Area</th>
+            <th>Red guardada</th>
             <th>Segmento</th>
             <th>Nombre segmento</th>
             <th class="text-center">Activa</th>
             <th class="text-center">Eliminar</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="segmento-formset-body">
           {% for segmento_form in segmento_formset %}
             <tr>
               <td>
@@ -249,6 +374,12 @@
                 {{ segmento_form.sucursal_area }}
                 {% if segmento_form.sucursal_area.errors %}
                   <div class="invalid-feedback d-block">{{ segmento_form.sucursal_area.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ segmento_form.red_guardada }}
+                {% if segmento_form.red_guardada.errors %}
+                  <div class="invalid-feedback d-block">{{ segmento_form.red_guardada.errors }}</div>
                 {% endif %}
               </td>
               <td>
@@ -273,13 +404,15 @@
                 {% if segmento_form.instance.pk %}
                   {{ segmento_form.DELETE }}
                 {% else %}
-                  <span class="text-muted">-</span>
+                  <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar red">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
                 {% endif %}
               </td>
             </tr>
             {% if segmento_form.non_field_errors %}
               <tr>
-                <td colspan="5">
+                <td colspan="6">
                   <div class="invalid-feedback d-block">{{ segmento_form.non_field_errors }}</div>
                 </td>
               </tr>
@@ -288,6 +421,24 @@
         </tbody>
       </table>
     </div>
+
+    <template id="segmento-empty-form-template">
+      <tr>
+        <td>
+          {% for hidden in segmento_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {{ segmento_formset.empty_form.sucursal_area }}
+        </td>
+        <td>{{ segmento_formset.empty_form.red_guardada }}</td>
+        <td>{{ segmento_formset.empty_form.segmento }}</td>
+        <td>{{ segmento_formset.empty_form.segmento_nombre }}</td>
+        <td class="text-center">{{ segmento_formset.empty_form.activa }}</td>
+        <td class="text-center">
+          <button class="btn btn-outline-danger btn-sm remove-formset-row" type="button" aria-label="Quitar red">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </td>
+      </tr>
+    </template>
 
     <div class="row mt-4">
       <div class="col-sm-9 offset-sm-3">
@@ -305,10 +456,6 @@
   document.addEventListener("DOMContentLoaded", function () {
     const direccionSelect = document.getElementById("id_direccion_existente");
     const direccionInputs = document.querySelectorAll(".direccion-manual-field input");
-    const addAreaButton = document.getElementById("add-area-row");
-    const areaBody = document.getElementById("area-formset-body");
-    const areaTemplate = document.getElementById("area-empty-form-template");
-    const totalFormsInput = document.getElementById("id_areas-TOTAL_FORMS");
 
     function syncDireccionManualFields() {
       if (!direccionSelect) {
@@ -325,15 +472,73 @@
       syncDireccionManualFields();
     }
 
-    if (!addAreaButton || !areaBody || !areaTemplate || !totalFormsInput) {
-      return;
+    function initDynamicFormset(options) {
+      const addButton = document.getElementById(options.addButtonId);
+      const body = document.getElementById(options.bodyId);
+      const template = document.getElementById(options.templateId);
+      const totalFormsInput = document.getElementById(options.totalFormsId);
+
+      if (!addButton || !body || !template || !totalFormsInput) {
+        return;
+      }
+
+      addButton.addEventListener("click", function () {
+        const formIndex = Number(totalFormsInput.value);
+        const rowHtml = template.innerHTML.replaceAll("__prefix__", formIndex);
+        body.insertAdjacentHTML("beforeend", rowHtml);
+        totalFormsInput.value = formIndex + 1;
+      });
+
+      body.addEventListener("click", function (event) {
+        const removeButton = event.target.closest(".remove-formset-row");
+        if (!removeButton) {
+          return;
+        }
+        removeButton.closest("tr").remove();
+      });
+
+      if (options.onChangeSelector) {
+        body.addEventListener("change", function (event) {
+          if (event.target.matches(options.onChangeSelector)) {
+            options.onChange(event.target);
+          }
+        });
+      }
     }
 
-    addAreaButton.addEventListener("click", function () {
-      const formIndex = Number(totalFormsInput.value);
-      const rowHtml = areaTemplate.innerHTML.replaceAll("__prefix__", formIndex);
-      areaBody.insertAdjacentHTML("beforeend", rowHtml);
-      totalFormsInput.value = formIndex + 1;
+    initDynamicFormset({
+      addButtonId: "add-area-row",
+      bodyId: "area-formset-body",
+      templateId: "area-empty-form-template",
+      totalFormsId: "id_areas-TOTAL_FORMS",
+    });
+    initDynamicFormset({
+      addButtonId: "add-telefono-row",
+      bodyId: "telefono-formset-body",
+      templateId: "telefono-empty-form-template",
+      totalFormsId: "id_telefonos-TOTAL_FORMS",
+    });
+    initDynamicFormset({
+      addButtonId: "add-piso-row",
+      bodyId: "piso-formset-body",
+      templateId: "piso-empty-form-template",
+      totalFormsId: "id_pisos-TOTAL_FORMS",
+    });
+    initDynamicFormset({
+      addButtonId: "add-segmento-row",
+      bodyId: "segmento-formset-body",
+      templateId: "segmento-empty-form-template",
+      totalFormsId: "id_segmentos-TOTAL_FORMS",
+      onChangeSelector: ".red-guardada-select",
+      onChange: function (select) {
+        if (!select.value) {
+          return;
+        }
+        const [segmento, segmentoNombre] = JSON.parse(select.value);
+        const row = select.closest("tr");
+        row.querySelector("input[name$='-segmento']").value = segmento;
+        row.querySelector("input[name$='-segmento_nombre']").value = segmentoNombre;
+      },
     });
   });
 </script>

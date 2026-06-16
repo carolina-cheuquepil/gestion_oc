@@ -95,40 +95,82 @@
     </div>
   </div>
 
-  <div class="col-12 col-xl-6">
+  <div class="col-12">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body p-0">
         <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h5 class="mb-0 fw-bold">Areas internas</h5>
-          <span class="badge bg-light text-dark">{{ sucursal.areas.all|length }}</span>
+          <h5 class="mb-0 fw-bold">Pisos y areas internas</h5>
+          <div class="d-flex gap-2">
+            <span class="badge bg-light text-dark">{{ sucursal.pisos.all|length }} pisos</span>
+            <span class="badge bg-light text-dark">{{ areas|length }} areas</span>
+          </div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Area</th>
-                <th>Tipo</th>
-                <th class="text-center">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for area in sucursal.areas.all %}
-              <tr>
-                <td class="fw-semibold">{{ area.area }}</td>
-                <td>{{ area.tipo|default:"-" }}</td>
-                <td class="text-center">
-                  {% if area.activa %}
-                    <span class="badge bg-success">Activa</span>
+        <div class="accordion accordion-flush" id="pisos-areas">
+          {% for piso in sucursal.pisos.all %}
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="piso-heading-{{ piso.pk }}">
+                <button
+                  class="accordion-button{% if not forloop.first %} collapsed{% endif %}"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#piso-collapse-{{ piso.pk }}"
+                  aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                  aria-controls="piso-collapse-{{ piso.pk }}"
+                >
+                  <span class="fw-semibold me-2">{{ piso.piso }}</span>
+                  {% if piso.activo %}
+                    <span class="badge bg-success me-2">Activo</span>
                   {% else %}
-                    <span class="badge bg-secondary">Inactiva</span>
+                    <span class="badge bg-secondary me-2">Inactivo</span>
                   {% endif %}
-                </td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="3" class="text-center text-muted py-3">Sin areas registradas.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  <span class="badge bg-light text-dark">{{ piso.areas.all|length }} areas</span>
+                </button>
+              </h2>
+              <div
+                id="piso-collapse-{{ piso.pk }}"
+                class="accordion-collapse collapse{% if forloop.first %} show{% endif %}"
+                aria-labelledby="piso-heading-{{ piso.pk }}"
+                data-bs-parent="#pisos-areas"
+              >
+                <div class="accordion-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-0 align-middle">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Area</th>
+                          <th>Tipo</th>
+                          <th class="text-center">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for area in piso.areas.all %}
+                          <tr>
+                            <td class="fw-semibold">{{ area.area }}</td>
+                            <td>{{ area.tipo|default:"-" }}</td>
+                            <td class="text-center">
+                              {% if area.activa %}
+                                <span class="badge bg-success">Activa</span>
+                              {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                              {% endif %}
+                            </td>
+                          </tr>
+                        {% empty %}
+                          <tr>
+                            <td colspan="3" class="text-center text-muted py-3">
+                              Sin areas asociadas a este piso.
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="text-center text-muted py-4">Sin pisos registrados.</div>
+          {% endfor %}
         </div>
       </div>
     </div>

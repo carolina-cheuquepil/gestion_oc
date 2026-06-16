@@ -12,7 +12,7 @@ class Holding(models.Model):
 
     class Meta:
         managed = False
-        db_table = "empresa"
+        db_table = "md_empresa"
     
     def __str__(self):
         return self.nombre or self.razon_social
@@ -29,7 +29,7 @@ class Direccion(models.Model):
 
     class Meta:
         managed = False
-        db_table = "direccion"
+        db_table = "md_direccion"
 
     def __str__(self):
         partes = [self.calle]
@@ -64,7 +64,7 @@ class Sucursal(models.Model):
 
     class Meta:
         managed = False
-        db_table = "sucursal"
+        db_table = "md_sucursal"
         ordering = ["nombre"]
 
     def __str__(self):
@@ -93,7 +93,7 @@ class SucursalTelefono(models.Model):
 
     class Meta:
         managed = False
-        db_table = "sucursal_telefono"
+        db_table = "md_sucursal_telefono"
         ordering = ["-principal", "tipo_telefono", "numero"]
 
     def __str__(self):
@@ -104,11 +104,13 @@ class SucursalTelefono(models.Model):
 
 class SucursalArea(models.Model):
     sucursal_area_id = models.AutoField(primary_key=True)
-    sucursal = models.ForeignKey(
-        Sucursal,
+    sucursal_piso = models.ForeignKey(
+        "SucursalPiso",
         on_delete=models.CASCADE,
-        db_column="sucursal_id",
+        db_column="sucursal_piso_id",
         related_name="areas",
+        blank=True,
+        null=True,
     )
     area = models.CharField(max_length=100)
     tipo = models.CharField(max_length=30, blank=True, null=True)
@@ -116,13 +118,34 @@ class SucursalArea(models.Model):
 
     class Meta:
         managed = False
-        db_table = "sucursal_area"
+        db_table = "md_sucursal_area"
         ordering = ["tipo", "area"]
 
     def __str__(self):
         tipo = f"{self.tipo}: " if self.tipo else ""
         estado = "" if self.activa else " (inactiva)"
         return f"{tipo}{self.area}{estado}"
+
+
+class SucursalPiso(models.Model):
+    sucursal_piso_id = models.AutoField(primary_key=True)
+    sucursal = models.ForeignKey(
+        Sucursal,
+        on_delete=models.CASCADE,
+        db_column="sucursal_id",
+        related_name="pisos",
+    )
+    piso = models.CharField(max_length=50)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        managed = False
+        db_table = "md_sucursal_piso"
+        ordering = ["piso"]
+
+    def __str__(self):
+        estado = "" if self.activo else " (inactivo)"
+        return f"{self.piso}{estado}"
 
 
 class SegmentoRed(models.Model):
@@ -147,7 +170,7 @@ class SegmentoRed(models.Model):
 
     class Meta:
         managed = False
-        db_table = "segmento_red"
+        db_table = "md_segmento_red"
         ordering = ["segmento", "segmento_nombre"]
 
     def __str__(self):

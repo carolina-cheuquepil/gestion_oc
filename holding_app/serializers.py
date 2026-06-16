@@ -1,7 +1,16 @@
 #PASO 2°: Si usarás API con Django Rest Framework
 #Traducción (Python ⇄ JSON)
 from rest_framework import serializers
-from .models import Holding, Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalTelefono, Usuario
+from .models import (
+    Holding,
+    Perfil,
+    SegmentoRed,
+    Sucursal,
+    SucursalArea,
+    SucursalPiso,
+    SucursalTelefono,
+    Usuario,
+)
 
 
 class HoldingSerializer(serializers.ModelSerializer):
@@ -32,10 +41,21 @@ class SucursalTelefonoSerializer(serializers.ModelSerializer):
 
 
 class SucursalAreaSerializer(serializers.ModelSerializer):
-    sucursal_nombre = serializers.CharField(source="sucursal.nombre", read_only=True)
+    sucursal_nombre = serializers.CharField(
+        source="sucursal_piso.sucursal.nombre", read_only=True
+    )
+    piso_nombre = serializers.CharField(source="sucursal_piso.piso", read_only=True)
 
     class Meta:
         model = SucursalArea
+        fields = "__all__"
+
+
+class SucursalPisoSerializer(serializers.ModelSerializer):
+    sucursal_nombre = serializers.CharField(source="sucursal.nombre", read_only=True)
+
+    class Meta:
+        model = SucursalPiso
         fields = "__all__"
 
 

@@ -4,6 +4,7 @@ from .views import (
     PerfilViewSet,
     SegmentoRedViewSet,
     SucursalAreaViewSet,
+    SucursalPisoViewSet,
     SucursalViewSet,
     SucursalTelefonoViewSet,
     UsuarioViewSet,
@@ -29,6 +30,7 @@ router.register(r"perfiles", PerfilViewSet, basename="perfil")
 router.register(r"sucursales", SucursalViewSet, basename="sucursal")
 router.register(r"sucursal-telefonos", SucursalTelefonoViewSet, basename="sucursal-telefono")
 router.register(r"sucursal-areas", SucursalAreaViewSet, basename="sucursal-area")
+router.register(r"sucursal-pisos", SucursalPisoViewSet, basename="sucursal-piso")
 router.register(r"segmentos-red", SegmentoRedViewSet, basename="segmento-red")
 router.register(r"usuarios", UsuarioViewSet, basename="usuario")
 

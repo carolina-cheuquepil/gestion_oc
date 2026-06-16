@@ -13,7 +13,12 @@ class CompraForm(forms.ModelForm):
     folio_cotizacion = forms.CharField(
         required=False,
         label="Folio cotización",
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Si no tiene N°, ingrese la fecha sin guiones. Ej: 18022026",
+            }
+        ),
     )
     fecha_cotizacion = forms.DateField(
         required=False,
