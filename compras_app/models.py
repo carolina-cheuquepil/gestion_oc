@@ -55,6 +55,37 @@ class Moneda(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
 
+
+class CorreoDestinatario(models.Model):
+    TIPO_AUTORIZACION_OC = "AUTORIZACION_OC"
+    TIPO_COBRANZA_CONTABILIDAD = "COBRANZA_CONTABILIDAD"
+    TIPO_COBRANZA_TESORERIA = "COBRANZA_TESORERIA"
+
+    TIPOS = [
+        (TIPO_AUTORIZACION_OC, "Solicitud de autorizacion OC"),
+        (TIPO_COBRANZA_CONTABILIDAD, "Cobranza - Contabilidad"),
+        (TIPO_COBRANZA_TESORERIA, "Cobranza - Tesoreria"),
+    ]
+
+    correo_destinatario_id = models.AutoField(primary_key=True)
+    tipo = models.CharField(max_length=40, choices=TIPOS)
+    nombre = models.CharField(max_length=100, blank=True)
+    email = models.EmailField(max_length=254)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "correo_destinatario"
+        managed = False
+        ordering = ["tipo", "nombre", "email"]
+        constraints = [
+            models.UniqueConstraint(fields=["tipo", "email"], name="uq_correo_destinatario_tipo_email"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.email}"
+
 class Compra(models.Model):
     compra_id = models.AutoField(primary_key=True)
 
@@ -134,6 +165,9 @@ class HistorialCompra(models.Model):
     fecha_documento = models.DateField(null=True, blank=True)
 
     folio = models.CharField(max_length=30, null=True, blank=True)
+    factura_total_neto_clp = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    factura_total_iva_clp = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    factura_total_clp = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
 
     tipo_documento = models.ForeignKey(
         "TipoDocumento",
@@ -221,6 +255,54 @@ class ProyectoInformatica(models.Model):
 
     def __str__(self):
         return self.proyecto_nombre
+
+
+class ProyectoInformaticaCosto(models.Model):
+    proyecto_costo_id = models.AutoField(primary_key=True)
+
+    proyecto = models.ForeignKey(
+        "ProyectoInformatica",
+        on_delete=models.CASCADE,
+        db_column="proyecto_informatica_id",
+        related_name="costos_servicio",
+    )
+
+    compra_item = models.OneToOneField(
+        "CompraItem",
+        on_delete=models.PROTECT,
+        db_column="compra_item_id",
+        related_name="costo_proyecto",
+    )
+
+    descripcion = models.CharField(max_length=255)
+    cantidad = models.DecimalField(max_digits=14, decimal_places=3, default=1)
+    costo_unitario = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "proyecto_informatica_costo"
+        managed = False
+        ordering = ["-creado_en", "-proyecto_costo_id"]
+
+    def __str__(self):
+        return f"{self.proyecto} - {self.descripcion}"
+
+    def save(self, *args, **kwargs):
+        if self.compra_item_id:
+            self.descripcion = (
+                self.compra_item.producto.producto_nombre
+                if self.compra_item.producto_id
+                else (self.compra_item.descripcion_libre or "Servicio")
+            )
+            self.cantidad = self.compra_item.cantidad or Decimal("0.000")
+            self.costo_unitario = self.compra_item.precio_unitario or Decimal("0.00")
+            descuento = (self.compra_item.descuento_porcentaje or Decimal("0")) / Decimal("100")
+            self.total = (
+                self.cantidad * self.costo_unitario * (Decimal("1.00") - descuento)
+            ).quantize(Decimal("0.01"))
+
+        super().save(*args, **kwargs)
 
 # ----------- Distribución interna ------------
 

@@ -1,12 +1,47 @@
 #FrontEnd A: Paso 1
 from django import forms
-from .models import Compra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, HistorialCompra, TipoOC, ProyectoInformatica
+from .models import Compra, CompraItem, CorreoDestinatario, FacturaIntercompany, FacturaIntercompanyItem, HistorialCompra, TipoOC, ProyectoInformatica, ProyectoInformaticaCosto
+from .templatetags.moneda import moneda as formatear_moneda
 from proveedores_app.models import Producto
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from decimal import Decimal
 from django.db.models import Sum
 from holding_app.forms import HoldingWidget
 from proveedores_app.forms import ProveedorWidget
+
+
+class CorreoDestinatarioForm(forms.ModelForm):
+    class Meta:
+        model = CorreoDestinatario
+        fields = ["tipo", "nombre", "email", "activo"]
+        widgets = {
+            "tipo": forms.Select(attrs={"class": "form-select"}),
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre o area"}),
+            "email": forms.EmailInput(attrs={"class": "form-control", "placeholder": "nombre@dimarsa.cl"}),
+            "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+        labels = {
+            "tipo": "Uso del correo",
+            "nombre": "Nombre",
+            "email": "Correo",
+            "activo": "Activo",
+        }
+
+    def clean_email(self):
+        return self.cleaned_data["email"].strip().lower()
+
+    def clean(self):
+        cleaned = super().clean()
+        tipo = cleaned.get("tipo")
+        email = cleaned.get("email")
+        if tipo and email:
+            qs = CorreoDestinatario.objects.filter(tipo=tipo, email__iexact=email)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("Ya existe este correo para el uso seleccionado.")
+        return cleaned
+
 
 # ----------- Compras ------------
 class CompraForm(forms.ModelForm):
@@ -50,6 +85,22 @@ class CompraForm(forms.ModelForm):
 
 
 class CompraItemForm(forms.ModelForm):
+    cantidad = forms.IntegerField(
+        min_value=1,
+        error_messages={
+            "invalid": "La cantidad debe ser un numero entero.",
+            "min_value": "La cantidad debe ser mayor a 0.",
+        },
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "1",
+                "min": "1",
+                "inputmode": "numeric",
+            }
+        ),
+    )
+
     class Meta:
         model = CompraItem
         fields = [
@@ -64,13 +115,18 @@ class CompraItemForm(forms.ModelForm):
         widgets = {
             "nro_linea": forms.NumberInput(attrs={"class": "form-control"}),
             "descripcion_libre": forms.TextInput(attrs={"class": "form-control"}),
-            "cantidad": forms.NumberInput(attrs={"class": "form-control", "step": "0.001"}),
             "precio_unitario": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "descuento_porcentaje": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
         }
 
     def __init__(self, *args, proveedor=None, **kwargs):
         super().__init__(*args, **kwargs)
+
+        cantidad = getattr(self.instance, "cantidad", None)
+        if cantidad is not None:
+            cantidad_decimal = Decimal(cantidad)
+            if cantidad_decimal == cantidad_decimal.to_integral_value():
+                self.initial["cantidad"] = int(cantidad_decimal)
 
         if proveedor:
             self.fields["producto"].queryset = Producto.objects.filter(
@@ -265,6 +321,39 @@ class ProyectoForm(forms.ModelForm):
         }
 
 
+class ProyectoServicioCostoForm(forms.ModelForm):
+    class Meta:
+        model = ProyectoInformaticaCosto
+        fields = ["compra_item"]
+        widgets = {
+            "compra_item": forms.Select(attrs={"class": "form-select"}),
+        }
+        labels = {
+            "compra_item": "Servicio",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["compra_item"].queryset = (
+            CompraItem.objects
+            .select_related("compra", "compra__moneda", "producto", "producto__tipo_producto")
+            .filter(producto__tipo_producto_id=3)
+            .filter(costo_proyecto__isnull=True)
+            .order_by("-compra__fecha_emision", "-compra_id", "nro_linea")
+        )
+        self.fields["compra_item"].label_from_instance = self.label_from_instance
+
+    def label_from_instance(self, obj):
+        nombre = obj.producto.producto_nombre if obj.producto_id else (obj.descripcion_libre or "Servicio")
+        descuento = (obj.descuento_porcentaje or Decimal("0")) / Decimal("100")
+        total = (
+            (obj.cantidad or Decimal("0")) *
+            (obj.precio_unitario or Decimal("0")) *
+            (Decimal("1.00") - descuento)
+        ).quantize(Decimal("0.01"))
+        return f"OC {obj.compra.folio or obj.compra_id} - {nombre} - {formatear_moneda(total, obj.compra.moneda)}"
+
+
 class CotizacionUploadForm(forms.ModelForm):
     fecha_documento = forms.DateField(
         required=False,
@@ -294,6 +383,35 @@ class FacturaProveedorForm(forms.Form):
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
     )
 
+    factura_total_neto_clp = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=14,
+        decimal_places=2,
+        label="Neto factura CLP",
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "1", "min": "0"}),
+    )
+    factura_total_iva_clp = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=14,
+        decimal_places=2,
+        label="IVA factura CLP",
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "1", "min": "0"}),
+    )
+    factura_total_clp = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=14,
+        decimal_places=2,
+        label="Total factura CLP",
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "1", "min": "0"}),
+    )
+
+    def __init__(self, *args, requiere_montos_clp=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.requiere_montos_clp = requiere_montos_clp
+
     def clean(self):
         cleaned_data = super().clean()
         fecha_factura = cleaned_data.get("fecha_factura")
@@ -302,5 +420,13 @@ class FacturaProveedorForm(forms.Form):
             self.add_error("folio_factura", "Debes ingresar el folio de la factura.")
         if folio_factura and not fecha_factura:
             self.add_error("fecha_factura", "Debes ingresar la fecha de la factura.")
+        if self.requiere_montos_clp and (fecha_factura or folio_factura):
+            for field_name in (
+                "factura_total_neto_clp",
+                "factura_total_iva_clp",
+                "factura_total_clp",
+            ):
+                if cleaned_data.get(field_name) is None:
+                    self.add_error(field_name, "Debes ingresar este valor en pesos chilenos.")
         cleaned_data["folio_factura"] = folio_factura
         return cleaned_data

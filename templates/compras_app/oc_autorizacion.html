@@ -1,3 +1,4 @@
+{% load moneda %}
 <p>Estimados:</p>
 
 <p>Solicito autorización de la siguiente Orden de Compra:</p>
@@ -19,16 +20,16 @@
     <tr>
         <td>{{ it.producto.producto_nombre }}</td>
         <td>{{ it.cantidad }}</td>
-        <td>{{ it.precio_unitario }}</td>
+        <td>{{ it.precio_unitario|moneda:compra.moneda }}</td>
     </tr>
     {% endfor %}
 </table>
 
 
 
-<p><strong>Neto:</strong> {{ compra.total_neto|floatformat:0 }}</p>
-<p><strong>IVA:</strong> {{ compra.total_iva|floatformat:0 }}</p>
-<p><strong>Total:</strong> {{ compra.total|floatformat:0 }}</p>
+<p><strong>Neto:</strong> {{ compra.total_neto|moneda:compra.moneda }}</p>
+<p><strong>IVA:</strong> {{ compra.total_iva|moneda:compra.moneda }}</p>
+<p><strong>Total:</strong> {{ compra.total|moneda:compra.moneda }}</p>
 
 
 <br>

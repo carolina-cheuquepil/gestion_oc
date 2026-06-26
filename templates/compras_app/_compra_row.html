@@ -50,7 +50,12 @@
         <i class="bi bi-file-earmark-text me-1"></i>Ingresar factura
       </a>
     {% endif %}
-    {% if c.factura_registrada and c.oc_aprobada and not c.contabilidad_ingresada %}
+    {% if c.cobranza_pendiente and c.cobranza_pendiente_historial %}
+      <span class="badge bg-warning text-dark">
+        Cobranza en espera hasta {{ c.cobranza_pendiente_historial.fecha_documento|date:"d-m-Y" }}
+      </span>
+    {% endif %}
+    {% if c.factura_registrada and c.oc_aprobada and not c.contabilidad_ingresada and not c.cobranza_pendiente %}
       <button type="button"
               class="btn btn-sm btn-outline-success despacho-contabilidad-btn"
               data-pk="{{ c.compra_id }}"

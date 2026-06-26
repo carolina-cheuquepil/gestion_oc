@@ -24,14 +24,14 @@
 
 <header class="header">
   <div class="header-inner">
-    <div class="d-flex align-items-center gap-2">
+    <div class="header-brand">
       <a href="/" class="text-decoration-none">
         <img src="{% static 'img/logo-dimarsa.svg' %}" class="logo" alt="Dimarsa">
       </a>
-      <span class="header-title">Soporte Dimarsa</span>
     </div>
+    <span class="header-title">Soporte Dimarsa</span>
     {% if usuario_actual_nombre %}
-    <div class="d-flex align-items-center gap-2">
+    <div class="header-actions">
       <span class="header-user">
         <i class="bi bi-person-circle"></i>{{ usuario_actual_nombre }}
       </span>
@@ -55,6 +55,9 @@
       </a>
       <a class="sidebar-link" href="{% url 'recepcion_productos_list' %}">
         <i class="bi bi-clipboard-check"></i> RecepciÃ³n productos
+      </a>
+      <a class="sidebar-link" href="{% url 'correos_destinatarios_list' %}">
+        <i class="bi bi-envelope-at"></i> Correos compras
       </a>
       <a class="sidebar-link" href="{% url 'proyectos_list' %}">
         <i class="bi bi-kanban"></i> Proyectos TI

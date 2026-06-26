@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}Facturas Intercompany{% endblock %}
 
 {% block content %}
@@ -36,7 +37,7 @@
             Compra #{{ f.compra_origen.compra_id }}
           {% else %}—{% endif %}
         </td>
-        <td class="text-end fw-semibold">{{ f.total }}</td>
+        <td class="text-end fw-semibold">{{ f.total|moneda:f.moneda }}</td>
         <td>
           <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'factura_ic_detail' f.pk %}">
             <i class="bi bi-eye me-1"></i>Ver

@@ -1,6 +1,15 @@
+{% load moneda %}
 <p>Estimada:</p>
 
 <p>Junto con saludar, por favor gestionar el pago de las siguientes facturas:</p>
+
+{% if cobranza_vencida %}
+<p style="color:#b42318; font-weight:bold;">
+  URGENTE: esta cobranza esta vencida. La fecha objetivo era
+  {{ fecha_envio_cobranza|date:"d-m-Y" }} y el correo se esta enviando el
+  {{ fecha_despacho_cobranza|date:"d-m-Y" }}.
+</p>
+{% endif %}
 
 <ul>
   
@@ -12,8 +21,8 @@
 
 </ul>
 
-<p><strong>Neto:</strong> {{ compra.moneda.codigo }} {{ compra.total_neto }}</p>
-<p><strong>IVA:</strong> {{ compra.moneda.codigo }} {{ compra.total_iva }}</p>
-<p><strong>Total:</strong> {{ compra.moneda.codigo }} {{ compra.total }}</p>
+<p><strong>Neto:</strong> {{ total_neto_cobranza|moneda:moneda_cobranza }}</p>
+<p><strong>IVA:</strong> {{ total_iva_cobranza|moneda:moneda_cobranza }}</p>
+<p><strong>Total:</strong> {{ total_cobranza|moneda:moneda_cobranza }}</p>
 
 <p>Saludos cordiales.</p>

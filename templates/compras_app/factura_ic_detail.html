@@ -1,5 +1,6 @@
 {# templates/compras_app/factura_ic_detail.html #}
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}Factura IC Nº {{ factura.folio|default:"SIN FOLIO" }}{% endblock %}
 
 {% block content %}
@@ -82,15 +83,15 @@
           <tbody>
             <tr>
               <td class="text-muted fw-semibold" style="font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;">Neto</td>
-              <td class="text-end">{{ factura.total_neto }}</td>
+              <td class="text-end">{{ factura.total_neto|moneda:factura.moneda }}</td>
             </tr>
             <tr>
               <td class="text-muted fw-semibold" style="font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;">IVA</td>
-              <td class="text-end">{{ factura.total_iva }}</td>
+              <td class="text-end">{{ factura.total_iva|moneda:factura.moneda }}</td>
             </tr>
             <tr style="border-top:2px solid var(--c-border);">
               <td class="fw-bold">Total</td>
-              <td class="text-end fw-bold" style="font-size:1rem;">{{ factura.total }}</td>
+              <td class="text-end fw-bold" style="font-size:1rem;">{{ factura.total|moneda:factura.moneda }}</td>
             </tr>
           </tbody>
         </table>
@@ -132,11 +133,11 @@
               {% endif %}
             </td>
             <td class="text-end">{{ it.cantidad }}</td>
-            <td class="text-end">{{ it.precio_base }}</td>
-            <td class="text-end">{{ it.precio_venta }}</td>
-            <td class="text-end">{{ it.subtotal_neto }}</td>
-            <td class="text-end">{{ it.subtotal_iva }}</td>
-            <td class="text-end fw-semibold">{{ it.subtotal_total }}</td>
+            <td class="text-end">{{ it.precio_base|moneda:factura.moneda }}</td>
+            <td class="text-end">{{ it.precio_venta|moneda:factura.moneda }}</td>
+            <td class="text-end">{{ it.subtotal_neto|moneda:factura.moneda }}</td>
+            <td class="text-end">{{ it.subtotal_iva|moneda:factura.moneda }}</td>
+            <td class="text-end fw-semibold">{{ it.subtotal_total|moneda:factura.moneda }}</td>
           </tr>
           {% empty %}
           <tr>

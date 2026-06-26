@@ -1,5 +1,6 @@
 {# templates/compras_app/compra_detail.html #}
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}Detalle Compra - {{ compra.tipo_documento }} {{ compra.folio|default:"SIN FOLIO" }}{% endblock %}
 
 {% block extra_css %}
@@ -95,17 +96,17 @@
           <tbody>
             <tr class="totals-row">
               <td>Neto</td>
-              <td>{{ compra.moneda.codigo }} {{ compra.total_neto }}</td>
+              <td>{{ compra.total_neto|moneda:compra.moneda }}</td>
             </tr>
             {% if compra.total_iva %}
             <tr class="totals-row">
               <td>IVA</td>
-              <td>{{ compra.moneda.codigo }} {{ compra.total_iva }}</td>
+              <td>{{ compra.total_iva|moneda:compra.moneda }}</td>
             </tr>
             {% endif %}
             <tr class="totals-row grand-total">
               <td>Total</td>
-              <td>{{ compra.moneda.codigo }} {{ compra.total }}</td>
+              <td>{{ compra.total|moneda:compra.moneda }}</td>
             </tr>
           </tbody>
         </table>
@@ -145,11 +146,11 @@
               {% endif %}
             </td>
             <td class="text-end">{{ item.cantidad }}</td>
-            <td class="text-end">{{ compra.moneda.codigo }} {{ item.precio_unitario }}</td>
+            <td class="text-end">{{ item.precio_unitario|moneda:compra.moneda }}</td>
             <td class="text-end">{{ item.descuento_porcentaje }}%</td>
-            <td class="text-end">{{ compra.moneda.codigo }} {{ item.subtotal_neto }}</td>
-            <td class="text-end">{{ compra.moneda.codigo }} {{ item.subtotal_iva }}</td>
-            <td class="text-end fw-semibold">{{ compra.moneda.codigo }} {{ item.subtotal_total }}</td>
+            <td class="text-end">{{ item.subtotal_neto|moneda:compra.moneda }}</td>
+            <td class="text-end">{{ item.subtotal_iva|moneda:compra.moneda }}</td>
+            <td class="text-end fw-semibold">{{ item.subtotal_total|moneda:compra.moneda }}</td>
           </tr>
           {% empty %}
           <tr>

@@ -71,6 +71,34 @@
           <label class="form-label fw-semibold">{{ factura_form.observacion_factura.label }}</label>
           {{ factura_form.observacion_factura }}
         </div>
+        {% if requiere_montos_clp %}
+        <div class="col-12">
+          <div class="alert alert-warning py-2 mb-0" style="font-size:.875rem;">
+            La OC esta en {{ compra.moneda.codigo }}. Ingresa los valores reales de la factura en pesos chilenos.
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-semibold">{{ factura_form.factura_total_neto_clp.label }}</label>
+          {{ factura_form.factura_total_neto_clp }}
+          {% if factura_form.factura_total_neto_clp.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.factura_total_neto_clp.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-semibold">{{ factura_form.factura_total_iva_clp.label }}</label>
+          {{ factura_form.factura_total_iva_clp }}
+          {% if factura_form.factura_total_iva_clp.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.factura_total_iva_clp.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label fw-semibold">{{ factura_form.factura_total_clp.label }}</label>
+          {{ factura_form.factura_total_clp }}
+          {% if factura_form.factura_total_clp.errors %}
+            <div class="invalid-feedback d-block">{{ factura_form.factura_total_clp.errors.0 }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
 
       <p class="text-muted mt-2 mb-0" style="font-size:.8rem;">
@@ -149,7 +177,8 @@
                   type="number"
                   name="recepcion_cantidad_{{ item.compra_item_id }}"
                   min="0"
-                  step="0.001"
+                  step="1"
+                  inputmode="numeric"
                   max="{{ info.pendiente }}"
                   value="0"
                   class="form-control form-control-sm text-end"

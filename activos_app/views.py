@@ -62,6 +62,43 @@ def _codigo_inventario_pendiente_activo(activo):
     return (activo.codigo_inventario or "").startswith(CODIGO_INVENTARIO_PENDIENTE_PREFIX)
 
 
+def registrar_recepciones_en_custodia_informatica(recepciones):
+    sucursal_custodia = _sucursal_custodia_informatica()
+    activos_creados = []
+
+    for recepcion in recepciones:
+        item = recepcion.compra_item
+        if not item.producto_id:
+            continue
+        tipo_producto = item.producto.tipo_producto
+        if not tipo_producto or "activo" not in tipo_producto.nombre.lower():
+            continue
+
+        cantidad = max(1, int(recepcion.cantidad_recibida))
+        activos_existentes = ActivoFijo.objects.filter(
+            recepcion_compra_item=recepcion,
+        ).count()
+
+        for unit_num in range(activos_existentes + 1, cantidad + 1):
+            activo = ActivoFijo.objects.create(
+                producto=item.producto,
+                sucursal=sucursal_custodia,
+                nombre_activo=item.producto.producto_nombre,
+                codigo_inventario=_codigo_inventario_pendiente(
+                    recepcion.recepcion_compra_item_id,
+                    unit_num,
+                ),
+                numero_serie=None,
+                fecha_adquisicion=date_cls.today(),
+                valor=item.precio_unitario or Decimal("0.00"),
+                estado="En bodega",
+                recepcion_compra_item=recepcion,
+            )
+            activos_creados.append(activo)
+
+    return activos_creados
+
+
 @login_sucursal_required
 def activos_fijos_list(request):
     activos = _activos_queryset().filter(

@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}{{ titulo|default:"Activos Fijos" }}{% endblock %}
 
 {% block content %}
@@ -47,7 +48,7 @@
             <td>{{ activo.numero_serie|default:"Pendiente" }}</td>
             <td>{{ activo.sucursal }}</td>
             <td>{{ activo.fecha_adquisicion|date:"d-m-Y" }}</td>
-            <td class="text-end">$ {{ activo.valor }}</td>
+            <td class="text-end">{{ activo.valor|moneda:"CLP" }}</td>
             <td>
               <span class="badge
                 {% if activo.estado == 'En uso' %}bg-success

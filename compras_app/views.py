@@ -1,17 +1,17 @@
 #PASO 3° BD: CRUD completo
 #FrontEnd C: Paso 3
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Compra, HistorialCompra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, TipoDocumento, EstadoDocumento, TipoOC, Moneda, ProyectoInformatica
+from .models import Compra, CorreoDestinatario, HistorialCompra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, TipoDocumento, EstadoDocumento, TipoOC, Moneda, ProyectoInformatica, ProyectoInformaticaCosto
 from proveedores_app.models import ProveedorProducto, ProveedorProductoPrecio
 from .serializers import CompraSerializer
 from rest_framework.viewsets import ModelViewSet
-from .forms import CompraForm, CompraItemFormSet, FacturaIntercompanyForm, FacturaIntercompanyItemFormSet, CotizacionUploadForm, ProyectoForm, FacturaProveedorForm
+from .forms import CompraForm, CompraItemFormSet, CorreoDestinatarioForm, FacturaIntercompanyForm, FacturaIntercompanyItemFormSet, CotizacionUploadForm, ProyectoForm, FacturaProveedorForm, ProyectoServicioCostoForm
 from activos_app.models import ActivoFijo, RecepcionCompraItem
 from django.views.generic import UpdateView
 from django.urls import reverse_lazy
 from django.conf import settings
 from django.contrib import messages
-from django.db import transaction
+from django.db import OperationalError, ProgrammingError, transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.db.models import Count, Exists, OuterRef, Sum
 from django.utils import timezone
@@ -27,6 +27,7 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 import mimetypes
 import smtplib
+import calendar
 
 
 class CompraViewSet(ModelViewSet):
@@ -37,6 +38,27 @@ class CompraViewSet(ModelViewSet):
 IVA_PCT = Decimal("0.19")
 RETENCION_PCT = Decimal("0.1375")
 TIPO_PRODUCTO_SERVICIO_ID = 3
+
+
+def _sumar_un_mes(fecha):
+    year = fecha.year + (1 if fecha.month == 12 else 0)
+    month = 1 if fecha.month == 12 else fecha.month + 1
+    last_day = calendar.monthrange(year, month)[1]
+    return fecha.replace(year=year, month=month, day=min(fecha.day, last_day))
+
+
+def _destinatarios_correo(tipo, fallback=None):
+    try:
+        destinatarios = list(
+            CorreoDestinatario.objects
+            .filter(tipo=tipo, activo=True)
+            .values_list("email", flat=True)
+        )
+    except (OperationalError, ProgrammingError):
+        destinatarios = []
+    if destinatarios:
+        return destinatarios
+    return list(fallback or [])
 
 
 def _item_requiere_recepcion(item):
@@ -89,7 +111,17 @@ def _sincronizar_compra_con_historial(compra, historial=None, save=True):
     return compra
 
 
-def _crear_historial_documento(compra, tipo_documento, estado_documento, folio=None, fecha_documento=None, archivo=None):
+def _crear_historial_documento(
+    compra,
+    tipo_documento,
+    estado_documento,
+    folio=None,
+    fecha_documento=None,
+    archivo=None,
+    factura_total_neto_clp=None,
+    factura_total_iva_clp=None,
+    factura_total_clp=None,
+):
     """
     Una compra es el expediente principal; cotizacion, OC, factura, recepcion,
     correos y aprobaciones quedan como documentos/eventos de su historial.
@@ -102,6 +134,9 @@ def _crear_historial_documento(compra, tipo_documento, estado_documento, folio=N
         estado_documento=estado_documento,
         folio=folio,
         archivo=archivo,
+        factura_total_neto_clp=factura_total_neto_clp,
+        factura_total_iva_clp=factura_total_iva_clp,
+        factura_total_clp=factura_total_clp,
     )
     _sincronizar_compra_con_historial(compra, historial=historial)
     return historial
@@ -116,6 +151,65 @@ def _historial_documento_existe(compra, tipo_documento, folio=None, fecha_docume
     if archivo:
         qs = qs.filter(archivo=archivo)
     return qs.exists()
+
+
+@login_sucursal_required
+def correos_destinatarios_list(request):
+    correos = CorreoDestinatario.objects.all()
+    return render(
+        request,
+        "compras_app/correos_destinatarios_list.html",
+        {"correos": correos},
+    )
+
+
+@login_sucursal_required
+def correo_destinatario_create(request):
+    if request.method == "POST":
+        form = CorreoDestinatarioForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Correo agregado.")
+            return redirect("correos_destinatarios_list")
+    else:
+        form = CorreoDestinatarioForm()
+    return render(
+        request,
+        "compras_app/correo_destinatario_form.html",
+        {"form": form, "is_edit": False},
+    )
+
+
+@login_sucursal_required
+def correo_destinatario_update(request, pk):
+    correo = get_object_or_404(CorreoDestinatario, pk=pk)
+    if request.method == "POST":
+        form = CorreoDestinatarioForm(request.POST, instance=correo)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Correo actualizado.")
+            return redirect("correos_destinatarios_list")
+    else:
+        form = CorreoDestinatarioForm(instance=correo)
+    return render(
+        request,
+        "compras_app/correo_destinatario_form.html",
+        {"form": form, "is_edit": True, "correo": correo},
+    )
+
+
+@login_sucursal_required
+def correo_destinatario_delete(request, pk):
+    correo = get_object_or_404(CorreoDestinatario, pk=pk)
+    if request.method == "POST":
+        correo.delete()
+        messages.success(request, "Correo eliminado.")
+        return redirect("correos_destinatarios_list")
+    return render(
+        request,
+        "compras_app/correo_destinatario_confirm_delete.html",
+        {"correo": correo},
+    )
 
 #----------------- Compras IT ---------------
 @login_sucursal_required
@@ -137,6 +231,11 @@ def compras_frontend(request):
         compra=OuterRef("pk"),
         tipo_documento__codigo="EMAIL",
         estado_documento__nombre__iexact="Cobrado",
+    )
+    cobranza_pendiente_sub = HistorialCompra.objects.filter(
+        compra=OuterRef("pk"),
+        tipo_documento__codigo="EMAIL",
+        estado_documento__nombre__iexact="En espera",
     )
     contabilidad_legacy_sub = HistorialCompra.objects.filter(
         compra=OuterRef("pk"),
@@ -162,6 +261,7 @@ def compras_frontend(request):
         factura_registrada=Exists(factura_registrada_sub),
         oc_aprobada=Exists(oc_aprobada_sub),
         contabilidad_ingresada=Exists(contabilidad_ingresada_sub),
+        cobranza_pendiente=Exists(cobranza_pendiente_sub),
         contabilidad_legacy_ingresada=Exists(contabilidad_legacy_sub),
         pago_registrado=Exists(pago_registrado_sub),
     )
@@ -179,6 +279,14 @@ def compras_frontend(request):
         )
         _sincronizar_compra_con_historial(compra, historial=compra.ultimo_historial, save=False)
         compra.contabilidad_ingresada = compra.contabilidad_ingresada or compra.contabilidad_legacy_ingresada
+        compra.cobranza_pendiente_historial = next(
+            (
+                h for h in getattr(compra, "historial_ordenado", [])
+                if h.tipo_documento.codigo == "EMAIL"
+                and h.estado_documento.nombre.lower() == "en espera"
+            ),
+            None,
+        )
         if not compras_por_proveedor or compras_por_proveedor[-1]["proveedor"] != compra.proveedor:
             compras_por_proveedor.append({
                 "proveedor": compra.proveedor,
@@ -669,12 +777,16 @@ def enviar_correo_oc(compra):
 
     subject = f"Solicitud autorización OC N° {compra.folio}"
     body = render_to_string("compras_app/oc_autorizacion.html", {"compra": compra})
+    destinatarios = _destinatarios_correo(
+        CorreoDestinatario.TIPO_AUTORIZACION_OC,
+        ["carolina.cheuquepil@dimarsa.cl"],
+    )
 
     email = EmailMessage(
         subject=subject,
         body=body,
         from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
-        to=["carolina.cheuquepil@dimarsa.cl"],
+        to=destinatarios,
     )
     email.content_subtype = "html"
 
@@ -714,30 +826,93 @@ def enviar_correo_oc(compra):
 
 
 def enviar_correo_cobranza_factura(compra, factura, fecha_contabilidad):
+    fecha_emision_factura = factura.fecha_documento or compra.fecha_emision
+    fecha_envio_cobranza = _sumar_un_mes(fecha_emision_factura)
+    fecha_despacho_cobranza = timezone.localdate()
+    if fecha_despacho_cobranza < fecha_envio_cobranza:
+        td_correo = (
+            TipoDocumento.objects.filter(pk=4).first()
+            or TipoDocumento.objects.filter(codigo="EMAIL").first()
+            or TipoDocumento.objects.create(codigo="EMAIL", nombre="Correo")
+        )
+        estado_espera = (
+            EstadoDocumento.objects.filter(nombre__iexact="En espera").first()
+            or EstadoDocumento.objects.create(nombre="En espera")
+        )
+        if not HistorialCompra.objects.filter(
+            compra=compra,
+            tipo_documento=td_correo,
+            estado_documento=estado_espera,
+            folio=factura.folio or compra.folio,
+            fecha_documento=fecha_envio_cobranza,
+        ).exists():
+            _crear_historial_documento(
+                compra=compra,
+                tipo_documento=td_correo,
+                estado_documento=estado_espera,
+                folio=factura.folio or compra.folio,
+                fecha_documento=fecha_envio_cobranza,
+            )
+        return False, (
+            "El correo de cobranza quedo en espera hasta "
+            f"{fecha_envio_cobranza.strftime('%d-%m-%Y')}."
+        )
+
     if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
         return False, (
             "No se pudo enviar el correo de cobranza porque faltan las variables "
             "EMAIL_HOST_USER y/o EMAIL_HOST_PASSWORD."
         )
 
-    destinatarios = list(settings.COBRANZA_CONTABILIDAD_EMAILS) + list(settings.COBRANZA_TESORERIA_EMAILS)
+    destinatarios = (
+        _destinatarios_correo(
+            CorreoDestinatario.TIPO_COBRANZA_CONTABILIDAD,
+            settings.COBRANZA_CONTABILIDAD_EMAILS,
+        )
+        + _destinatarios_correo(
+            CorreoDestinatario.TIPO_COBRANZA_TESORERIA,
+            settings.COBRANZA_TESORERIA_EMAILS,
+        )
+    )
     if not destinatarios:
         return False, (
             "No se pudo enviar el correo de cobranza porque faltan destinatarios. "
             "Configura COBRANZA_CONTABILIDAD_EMAILS y/o COBRANZA_TESORERIA_EMAILS."
         )
 
-    fecha_emision_factura = factura.fecha_documento or compra.fecha_emision
-    dias_desde_emision = (fecha_contabilidad - fecha_emision_factura).days
+    dias_desde_emision = (fecha_despacho_cobranza - fecha_emision_factura).days
+    cobranza_vencida = fecha_despacho_cobranza > fecha_envio_cobranza
+    moneda_cobranza = "CLP" if factura.factura_total_clp is not None else compra.moneda
+    total_neto_cobranza = (
+        factura.factura_total_neto_clp
+        if factura.factura_total_neto_clp is not None else compra.total_neto
+    )
+    total_iva_cobranza = (
+        factura.factura_total_iva_clp
+        if factura.factura_total_iva_clp is not None else compra.total_iva
+    )
+    total_cobranza = (
+        factura.factura_total_clp
+        if factura.factura_total_clp is not None else compra.total
+    )
     subject = f"Cobranza factura {factura.folio or compra.folio or compra.pk} - {compra.proveedor}"
+    if cobranza_vencida:
+        subject = f"URGENTE - {subject}"
     body = render_to_string(
         "compras_app/cobranza_factura.html",
         {
             "compra": compra,
             "factura": factura,
             "fecha_emision_factura": fecha_emision_factura,
+            "fecha_envio_cobranza": fecha_envio_cobranza,
             "fecha_contabilidad": fecha_contabilidad,
+            "fecha_despacho_cobranza": fecha_despacho_cobranza,
             "dias_desde_emision": dias_desde_emision,
+            "cobranza_vencida": cobranza_vencida,
+            "moneda_cobranza": moneda_cobranza,
+            "total_neto_cobranza": total_neto_cobranza,
+            "total_iva_cobranza": total_iva_cobranza,
+            "total_cobranza": total_cobranza,
         },
     )
 
@@ -748,6 +923,12 @@ def enviar_correo_cobranza_factura(compra, factura, fecha_contabilidad):
         to=destinatarios,
     )
     email.content_subtype = "html"
+    if cobranza_vencida:
+        email.extra_headers = {
+            "Importance": "High",
+            "Priority": "urgent",
+            "X-Priority": "1",
+        }
 
     if factura.archivo:
         filename = factura.archivo.name.split("/")[-1]
@@ -942,6 +1123,9 @@ def registrar_ingreso_contabilidad(request, pk):
         folio=factura.folio,
         fecha_documento=fecha_firma,
         archivo=archivo_firma,
+        factura_total_neto_clp=factura.factura_total_neto_clp,
+        factura_total_iva_clp=factura.factura_total_iva_clp,
+        factura_total_clp=factura.factura_total_clp,
     )
     factura_enviada = _crear_historial_documento(
         compra=compra,
@@ -950,9 +1134,14 @@ def registrar_ingreso_contabilidad(request, pk):
         folio=factura.folio,
         fecha_documento=factura.fecha_documento,
         archivo=archivo_firma,
+        factura_total_neto_clp=factura.factura_total_neto_clp,
+        factura_total_iva_clp=factura.factura_total_iva_clp,
+        factura_total_clp=factura.factura_total_clp,
     )
     enviado, error = enviar_correo_cobranza_factura(compra, factura_enviada, fecha_contabilidad)
     if not enviado:
+        if error.startswith("El correo de cobranza quedo en espera"):
+            return JsonResponse({"ok": True, "warning": error, "reload": True})
         return JsonResponse({"ok": True, "warning": error})
 
     return JsonResponse({"ok": True})
@@ -1087,9 +1276,14 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
         pk=pk,
     )
     items = list(compra.items.all())
+    requiere_montos_clp = (compra.moneda.codigo or "").upper() != "CLP"
 
     if request.method == "POST":
-        factura_form = FacturaProveedorForm(request.POST, request.FILES)
+        factura_form = FacturaProveedorForm(
+            request.POST,
+            request.FILES,
+            requiere_montos_clp=requiere_montos_clp,
+        )
 
         if factura_form.is_valid():
             fecha_factura = factura_form.cleaned_data.get("fecha_factura")
@@ -1107,6 +1301,9 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
                     estado_documento=estado_recibido,
                     folio=folio_factura,
                     fecha_documento=fecha_factura,
+                    factura_total_neto_clp=factura_form.cleaned_data.get("factura_total_neto_clp"),
+                    factura_total_iva_clp=factura_form.cleaned_data.get("factura_total_iva_clp"),
+                    factura_total_clp=factura_form.cleaned_data.get("factura_total_clp"),
                 )
 
             nuevas_recepciones = []
@@ -1118,6 +1315,8 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
                 if qty_str:
                     try:
                         qty = Decimal(qty_str)
+                        if qty != qty.to_integral_value():
+                            continue
                         total_recibido = sum(
                             (r.cantidad_recibida or Decimal("0.000"))
                             for r in item.recepciones.all()
@@ -1154,16 +1353,16 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
                     and "activo" in r.compra_item.producto.tipo_producto.nombre.lower()
                 ]
                 if recp_af:
-                    ids_param = ",".join(str(r.recepcion_compra_item_id) for r in recp_af)
-                    from django.urls import reverse
-                    url = reverse("activos_registrar", kwargs={"compra_pk": compra.pk})
-                    return redirect(f"{url}?recp={ids_param}")
+                    from activos_app.views import registrar_recepciones_en_custodia_informatica
+
+                    registrar_recepciones_en_custodia_informatica(recp_af)
+                    return redirect("activos_informatica_list")
 
             if solo_recepcion:
                 return redirect("recepcion_productos_list")
             return redirect("compra_detail", pk=compra.pk)
     else:
-        factura_form = FacturaProveedorForm()
+        factura_form = FacturaProveedorForm(requiere_montos_clp=requiere_montos_clp)
 
     items_info = []
     for item in items:
@@ -1186,6 +1385,7 @@ def _registrar_factura_recepcion(request, pk, solo_recepcion=False):
         "items_info": items_info,
         "facturas_registradas": facturas_registradas,
         "solo_recepcion": solo_recepcion,
+        "requiere_montos_clp": requiere_montos_clp,
     })
 
 
@@ -1249,8 +1449,12 @@ def recepcion_productos_list(request):
 def proyectos_list(request):
     proyectos = ProyectoInformatica.objects.annotate(
         total_activos=Count("activos_fijos", distinct=True),
-        valor_activos=Sum("activos_fijos__valor"),
+        total_servicios=Count("costos_servicio", distinct=True),
     )
+    for proyecto in proyectos:
+        proyecto.valor_activos = proyecto.activos_fijos.aggregate(total=Sum("valor"))["total"] or Decimal("0.00")
+        proyecto.valor_servicios = proyecto.costos_servicio.aggregate(total=Sum("total"))["total"] or Decimal("0.00")
+        proyecto.valor_total = proyecto.valor_activos + proyecto.valor_servicios
     return render(request, "compras_app/proyectos_list.html", {"proyectos": proyectos})
 
 
@@ -1259,10 +1463,25 @@ def proyecto_activos(request, pk):
     proyecto = get_object_or_404(
         ProyectoInformatica.objects.annotate(
             total_activos=Count("activos_fijos", distinct=True),
-            valor_activos=Sum("activos_fijos__valor"),
+            total_servicios=Count("costos_servicio", distinct=True),
         ),
         pk=pk,
     )
+    proyecto.valor_activos = proyecto.activos_fijos.aggregate(total=Sum("valor"))["total"] or Decimal("0.00")
+    proyecto.valor_servicios = proyecto.costos_servicio.aggregate(total=Sum("total"))["total"] or Decimal("0.00")
+    proyecto.valor_total = proyecto.valor_activos + proyecto.valor_servicios
+
+    if request.method == "POST":
+        form = ProyectoServicioCostoForm(request.POST)
+        if form.is_valid():
+            costo = form.save(commit=False)
+            costo.proyecto = proyecto
+            costo.save()
+            messages.success(request, "Servicio agregado como costo del proyecto.")
+            return redirect("proyecto_activos", pk=proyecto.pk)
+    else:
+        form = ProyectoServicioCostoForm()
+
     activos = (
         ActivoFijo.objects
         .select_related(
@@ -1273,14 +1492,30 @@ def proyecto_activos(request, pk):
         .filter(proyecto_informatica=proyecto)
         .order_by("nombre_activo")
     )
+    costos_servicio = (
+        ProyectoInformaticaCosto.objects
+        .select_related("compra_item__compra__moneda", "compra_item__producto")
+        .filter(proyecto=proyecto)
+    )
     return render(
         request,
         "compras_app/proyecto_activos.html",
         {
             "proyecto": proyecto,
             "activos": activos,
+            "costos_servicio": costos_servicio,
+            "servicio_form": form,
         },
     )
+
+
+@login_sucursal_required
+def proyecto_costo_delete(request, pk, costo_pk):
+    if request.method == "POST":
+        costo = get_object_or_404(ProyectoInformaticaCosto, pk=costo_pk, proyecto_id=pk)
+        costo.delete()
+        messages.success(request, "Costo de servicio quitado del proyecto.")
+    return redirect("proyecto_activos", pk=pk)
 
 
 @login_sucursal_required

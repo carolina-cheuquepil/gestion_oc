@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}Proyectos TI{% endblock %}
 
 {% block content %}
@@ -18,7 +19,8 @@
         <th>Inicio</th>
         <th>Fin</th>
         <th class="text-end">Activos</th>
-        <th class="text-end">Total activos</th>
+        <th class="text-end">Servicios</th>
+        <th class="text-end">Total proyecto</th>
         <th>Estado</th>
         <th></th>
       </tr>
@@ -30,8 +32,9 @@
         <td>{{ p.proyecto_nombre }}</td>
         <td>{{ p.fecha_inicio|date:"d-m-Y"|default:"—" }}</td>
         <td>{{ p.fecha_fin|date:"d-m-Y"|default:"—" }}</td>
-        <td class="text-end">{{ p.total_activos|default:0 }}</td>
-        <td class="text-end">$ {{ p.valor_activos|default:"0.00" }}</td>
+        <td class="text-end">{{ p.total_activos|default:0 }} / {{ p.valor_activos|default:0|moneda:"CLP" }}</td>
+        <td class="text-end">{{ p.total_servicios|default:0 }} / {{ p.valor_servicios|default:0|moneda:"CLP" }}</td>
+        <td class="text-end fw-semibold">{{ p.valor_total|default:0|moneda:"CLP" }}</td>
         <td>
           {% if p.activo %}
             <span class="badge bg-success">Activo</span>
@@ -42,7 +45,7 @@
         <td>
           <a class="btn btn-sm btn-outline-primary me-1"
              href="{% url 'proyecto_activos' p.proyecto_id %}">
-            <i class="bi bi-box-seam me-1"></i>Ver activos
+            <i class="bi bi-box-seam me-1"></i>Ver costos
           </a>
           <a class="btn btn-sm btn-outline-secondary me-1"
              href="{% url 'proyecto_update' p.proyecto_id %}">

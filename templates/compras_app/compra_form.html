@@ -1,4 +1,5 @@
 ﻿{% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}Nueva compra{% endblock %}
 
 {% block extra_css %}
@@ -436,7 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </tr>
             <tr>
               <td class="text-muted fw-semibold">Monto total</td>
-              <td class="fw-bold">{{ compra.moneda.codigo }} {{ compra.total }}</td>
+              <td class="fw-bold">{{ compra.total|moneda:compra.moneda }}</td>
             </tr>
           </tbody>
         </table>
@@ -624,7 +625,7 @@ function calcularSubtotalFila(row) {
 function formatearMonto(valor, codigo) {
   switch (codigo) {
     case "USD":
-      return "USD " + valor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return "US$ " + valor.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     case "UF":
       return "UF " + valor.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
     default: // CLP

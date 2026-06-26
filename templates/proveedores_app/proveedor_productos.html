@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}Productos de {{ proveedor.nombre }}{% endblock %}
 
 {% block content %}
@@ -44,7 +45,7 @@
         <td class="text-end">
           {% with actual=p.historial_precios.0 %}
             {% if actual %}
-              {{ actual.moneda }} {{ actual.precio_neto }}
+              {{ actual.precio_neto|moneda:actual.moneda }}
             {% else %}
               <span class="text-muted">Sin precio</span>
             {% endif %}
@@ -85,7 +86,7 @@
                 {% for precio in p.historial_precios %}
                 <tr>
                   <td class="text-muted">#{{ precio.proveedor_producto_precio_id }}</td>
-                  <td class="text-end">{{ precio.precio_neto }}</td>
+                  <td class="text-end">{{ precio.precio_neto|moneda:precio.moneda }}</td>
                   <td>{{ precio.moneda }}</td>
                   <td>
                     {% if forloop.first %}

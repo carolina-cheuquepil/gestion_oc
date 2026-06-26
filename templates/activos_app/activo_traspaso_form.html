@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% load moneda %}
 {% block title %}{% if codigo_pendiente %}Entregar activo fijo{% else %}Traspasar activo fijo{% endif %}{% endblock %}
 
 {% block content %}
@@ -56,7 +57,7 @@
           <dd class="col-7">{{ activo.numero_serie|default:"Pendiente" }}</dd>
 
           <dt class="col-5">Valor base</dt>
-          <dd class="col-7">$ {{ activo.valor }}</dd>
+          <dd class="col-7">{{ activo.valor|moneda:"CLP" }}</dd>
 
           <dt class="col-5">OC origen</dt>
           <dd class="col-7">
