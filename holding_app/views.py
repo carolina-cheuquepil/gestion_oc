@@ -18,7 +18,19 @@ from .access import (
     set_todas_sucursales_session,
     sucursales_usuario,
 )
-from .models import Direccion, Holding, Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalPiso, SucursalTelefono, Usuario, UsuarioSucursal
+from .models import (
+    Direccion,
+    Holding,
+    Perfil,
+    SegmentoRed,
+    SegmentoRedArea,
+    Sucursal,
+    SucursalArea,
+    SucursalPiso,
+    SucursalTelefono,
+    Usuario,
+    UsuarioSucursal,
+)
 from .serializers import HoldingSerializer, PerfilSerializer, SegmentoRedSerializer, SucursalAreaSerializer, SucursalPisoSerializer, SucursalSerializer, SucursalTelefonoSerializer, UsuarioSerializer
 from rest_framework.viewsets import ModelViewSet
 from .forms import DireccionForm, HoldingForm, SegmentoRedFormSet, SucursalAreaFormSet, SucursalForm, SucursalPisoFormSet, SucursalTelefonoFormSet
@@ -58,7 +70,10 @@ class SucursalPisoViewSet(ModelViewSet):
 
 
 class SegmentoRedViewSet(ModelViewSet):
-    queryset = SegmentoRed.objects.select_related("sucursal", "sucursal__empresa", "sucursal_area").all()
+    queryset = SegmentoRed.objects.select_related(
+        "sucursal",
+        "sucursal__empresa",
+    ).prefetch_related("areas")
     serializer_class = SegmentoRedSerializer
 
 
@@ -223,16 +238,28 @@ def sucursal_detail(request, empresa_pk, pk):
     sucursal = get_object_or_404(
         Sucursal.objects.select_related("empresa", "direccion").prefetch_related(
             Prefetch(
-                "telefonos",
-                queryset=SucursalTelefono.objects.select_related("sucursal_area"),
-            ),
-            Prefetch(
                 "pisos",
-                queryset=SucursalPiso.objects.prefetch_related("areas"),
+                queryset=SucursalPiso.objects.prefetch_related(
+                    Prefetch(
+                        "areas",
+                        queryset=SucursalArea.objects.prefetch_related("telefonos"),
+                    ),
+                ),
             ),
             Prefetch(
                 "segmentos_red",
-                queryset=SegmentoRed.objects.select_related("sucursal_area"),
+                queryset=SegmentoRed.objects.prefetch_related(
+                    Prefetch(
+                        "asignaciones_area",
+                        queryset=SegmentoRedArea.objects.filter(
+                            activa=True,
+                        ).select_related(
+                            "sucursal_area",
+                            "sucursal_area__sucursal_piso",
+                        ),
+                        to_attr="asignaciones_activas",
+                    ),
+                ),
             ),
             Prefetch(
                 "usuario_sucursales",

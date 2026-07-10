@@ -1,8 +1,9 @@
 from unittest.mock import Mock, patch
 
+from django.core.exceptions import FieldDoesNotExist
 from django.test import RequestFactory, SimpleTestCase
 
-from .models import Direccion
+from .models import Direccion, SegmentoRed, SegmentoRedArea, SucursalTelefono
 from .views import sucursal_update
 
 
@@ -32,6 +33,19 @@ class DireccionTests(SimpleTestCase):
         )
 
         self.assertEqual(str(direccion), "Gran Avenida, Santiago")
+
+
+class SegmentoRedModelsTests(SimpleTestCase):
+    def test_areas_usa_tabla_intermedia(self):
+        with self.assertRaises(FieldDoesNotExist):
+            SegmentoRed._meta.get_field("sucursal_area")
+
+        areas = SegmentoRed._meta.get_field("areas")
+        self.assertTrue(areas.many_to_many)
+        self.assertIs(areas.remote_field.through, SegmentoRedArea)
+        self.assertEqual(SegmentoRed._meta.db_table, "r_segmento_red")
+        self.assertEqual(SegmentoRedArea._meta.db_table, "r_segmento_red_area")
+        self.assertEqual(SucursalTelefono._meta.db_table, "r_sucursal_telefono")
 
 
 class SucursalUpdateTests(SimpleTestCase):

@@ -7,6 +7,7 @@ from .models import (
     Direccion,
     Holding,
     SegmentoRed,
+    SegmentoRedArea,
     Sucursal,
     SucursalArea,
     SucursalPiso,
@@ -155,9 +156,17 @@ class SucursalAreaForm(forms.ModelForm):
         self.fields["sucursal_piso"].queryset = pisos_queryset
 
 
+class SucursalAreaFormSetBase(forms.BaseModelFormSet):
+    def delete_existing(self, obj, commit=True):
+        if commit:
+            SegmentoRedArea.objects.filter(sucursal_area=obj).delete()
+        super().delete_existing(obj, commit=commit)
+
+
 SucursalAreaFormSet = modelformset_factory(
     SucursalArea,
     form=SucursalAreaForm,
+    formset=SucursalAreaFormSetBase,
     extra=1,
     can_delete=True,
 )
@@ -189,6 +198,14 @@ SucursalPisoFormSet = inlineformset_factory(
 
 
 class SegmentoRedForm(forms.ModelForm):
+    sucursal_areas = forms.ModelMultipleChoiceField(
+        queryset=SucursalArea.objects.none(),
+        required=False,
+        label="Areas",
+        widget=forms.SelectMultiple(
+            attrs={"class": "form-select", "size": 3},
+        ),
+    )
     red_guardada = forms.ChoiceField(
         required=False,
         label="Red guardada",
@@ -198,15 +215,14 @@ class SegmentoRedForm(forms.ModelForm):
 
     class Meta:
         model = SegmentoRed
-        fields = ["sucursal_area", "segmento", "segmento_nombre", "activa"]
+        fields = ["sucursal_areas", "segmento", "segmento_nombre", "activa"]
         labels = {
-            "sucursal_area": "Area",
+            "sucursal_areas": "Areas",
             "segmento": "Segmento",
             "segmento_nombre": "Nombre segmento",
             "activa": "Activa",
         }
         widgets = {
-            "sucursal_area": forms.Select(attrs={"class": "form-select"}),
             "segmento": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: VLAN 10"}),
             "segmento_nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej: Administracion"}),
             "activa": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -217,6 +233,10 @@ class SegmentoRedForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["segmento"].required = False
         self.fields["segmento_nombre"].required = False
+        if self.instance.pk:
+            self.initial["sucursal_areas"] = self.instance.asignaciones_area.filter(
+                activa=True,
+            ).values_list("sucursal_area_id", flat=True)
         if redes_guardadas is None:
             redes_guardadas = list(
                 SegmentoRed.objects.filter(activa=True)
@@ -249,6 +269,12 @@ class SegmentoRedForm(forms.ModelForm):
                 self.add_error("segmento_nombre", "Ingresa un nombre o selecciona una red guardada.")
         return cleaned
 
+    def save(self, commit=True):
+        segmento = super().save(commit=commit)
+        if commit:
+            segmento.asignar_areas(self.cleaned_data.get("sucursal_areas", []))
+        return segmento
+
 
 class SegmentoRedFormSetBase(BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
@@ -267,8 +293,8 @@ class SegmentoRedFormSetBase(BaseInlineFormSet):
                 sucursal_piso__sucursal=self.instance
             ).order_by("sucursal_piso__piso", "tipo", "area")
         for form in self.forms:
-            if "sucursal_area" in form.fields:
-                form.fields["sucursal_area"].queryset = area_qs
+            if "sucursal_areas" in form.fields:
+                form.fields["sucursal_areas"].queryset = area_qs
 
     def get_form_kwargs(self, index):
         kwargs = super().get_form_kwargs(index)
@@ -282,12 +308,20 @@ class SegmentoRedFormSetBase(BaseInlineFormSet):
         for form in self.forms:
             if not hasattr(form, "cleaned_data") or form.cleaned_data.get("DELETE"):
                 continue
-            sucursal_area = form.cleaned_data.get("sucursal_area")
-            if (
-                sucursal_area
-                and sucursal_area.sucursal_piso.sucursal_id != self.instance.pk
+            sucursal_areas = form.cleaned_data.get("sucursal_areas", [])
+            if any(
+                area.sucursal_piso.sucursal_id != self.instance.pk
+                for area in sucursal_areas
             ):
-                form.add_error("sucursal_area", "El area debe pertenecer a esta sucursal.")
+                form.add_error(
+                    "sucursal_areas",
+                    "Todas las areas deben pertenecer a esta sucursal.",
+                )
+
+    def delete_existing(self, obj, commit=True):
+        if commit:
+            SegmentoRedArea.objects.filter(segmento_red=obj).delete()
+        super().delete_existing(obj, commit=commit)
 
 
 SegmentoRedFormSet = inlineformset_factory(

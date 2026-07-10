@@ -93,7 +93,7 @@ class SucursalTelefono(models.Model):
 
     class Meta:
         managed = False
-        db_table = "md_sucursal_telefono"
+        db_table = "r_sucursal_telefono"
         ordering = ["-principal", "tipo_telefono", "numero"]
 
     def __str__(self):
@@ -156,13 +156,12 @@ class SegmentoRed(models.Model):
         db_column="sucursal_id",
         related_name="segmentos_red",
     )
-    sucursal_area = models.ForeignKey(
+    areas = models.ManyToManyField(
         SucursalArea,
-        on_delete=models.SET_NULL,
-        db_column="sucursal_area_id",
+        through="SegmentoRedArea",
+        through_fields=("segmento_red", "sucursal_area"),
         related_name="segmentos_red",
         blank=True,
-        null=True,
     )
     segmento = models.CharField(max_length=50)
     segmento_nombre = models.CharField(max_length=100)
@@ -170,12 +169,59 @@ class SegmentoRed(models.Model):
 
     class Meta:
         managed = False
-        db_table = "md_segmento_red"
+        db_table = "r_segmento_red"
         ordering = ["segmento", "segmento_nombre"]
 
     def __str__(self):
         estado = "" if self.activa else " (inactivo)"
         return f"{self.segmento} - {self.segmento_nombre}{estado}"
+
+    @property
+    def areas_activas(self):
+        return self.areas.filter(asignaciones_segmento__activa=True)
+
+    def asignar_areas(self, areas):
+        area_ids = {
+            area.pk if isinstance(area, SucursalArea) else int(area)
+            for area in areas
+        }
+        self.asignaciones_area.exclude(sucursal_area_id__in=area_ids).update(activa=False)
+        for area_id in area_ids:
+            SegmentoRedArea.objects.update_or_create(
+                segmento_red=self,
+                sucursal_area_id=area_id,
+                defaults={"activa": True},
+            )
+
+
+class SegmentoRedArea(models.Model):
+    segmento_red_area_id = models.AutoField(primary_key=True)
+    segmento_red = models.ForeignKey(
+        SegmentoRed,
+        on_delete=models.CASCADE,
+        db_column="segmento_red_id",
+        related_name="asignaciones_area",
+    )
+    sucursal_area = models.ForeignKey(
+        SucursalArea,
+        on_delete=models.CASCADE,
+        db_column="sucursal_area_id",
+        related_name="asignaciones_segmento",
+    )
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        managed = False
+        db_table = "r_segmento_red_area"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["segmento_red", "sucursal_area"],
+                name="uq_segmento_area",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.segmento_red} - {self.sucursal_area}"
 
 
 class Perfil(models.Model):
@@ -184,7 +230,7 @@ class Perfil(models.Model):
 
     class Meta:
         managed = False
-        db_table = "perfil"
+        db_table = "u_perfil"
 
     def __str__(self):
         return self.nombre or f"Perfil {self.perfil_id}"
@@ -210,7 +256,7 @@ class Usuario(models.Model):
 
     class Meta:
         managed = False
-        db_table = "usuario"
+        db_table = "u_usuario"
 
     def __str__(self):
         nombre_completo = " ".join(
@@ -236,7 +282,7 @@ class UsuarioSucursal(models.Model):
 
     class Meta:
         managed = False
-        db_table = "usuario_sucursal"
+        db_table = "u_usuario_sucursal"
         unique_together = (("usuario", "sucursal"),)
 
     def __str__(self):

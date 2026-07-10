@@ -86,6 +86,17 @@ class CorreoDestinatario(models.Model):
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.email}"
 
+
+class CompraSolicitud(models.Model):
+    token = models.UUIDField(primary_key=True, editable=False)
+    compra_id = models.PositiveIntegerField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "compra_solicitud"
+        managed = False
+
+
 class Compra(models.Model):
     compra_id = models.AutoField(primary_key=True)
 

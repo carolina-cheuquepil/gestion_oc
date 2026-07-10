@@ -61,11 +61,60 @@ class SucursalPisoSerializer(serializers.ModelSerializer):
 
 class SegmentoRedSerializer(serializers.ModelSerializer):
     sucursal_nombre = serializers.CharField(source="sucursal.nombre", read_only=True)
-    sucursal_area_nombre = serializers.CharField(source="sucursal_area.area", read_only=True)
+    sucursal_areas = serializers.PrimaryKeyRelatedField(
+        source="areas_activas",
+        queryset=SucursalArea.objects.all(),
+        many=True,
+        required=False,
+    )
+    sucursal_area_nombres = serializers.SerializerMethodField()
 
     class Meta:
         model = SegmentoRed
-        fields = "__all__"
+        fields = [
+            "segmento_red_id",
+            "sucursal",
+            "sucursal_nombre",
+            "sucursal_areas",
+            "sucursal_area_nombres",
+            "segmento",
+            "segmento_nombre",
+            "activa",
+        ]
+
+    def get_sucursal_area_nombres(self, obj):
+        return list(
+            obj.asignaciones_area.filter(activa=True).values_list(
+                "sucursal_area__area",
+                flat=True,
+            ),
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        sucursal = attrs.get("sucursal", getattr(self.instance, "sucursal", None))
+        areas = attrs.get("areas_activas")
+        if sucursal and areas is not None and any(
+            area.sucursal_piso.sucursal_id != sucursal.pk
+            for area in areas
+        ):
+            raise serializers.ValidationError({
+                "sucursal_areas": "Todas las areas deben pertenecer a la sucursal.",
+            })
+        return attrs
+
+    def create(self, validated_data):
+        areas = validated_data.pop("areas_activas", [])
+        segmento = super().create(validated_data)
+        segmento.asignar_areas(areas)
+        return segmento
+
+    def update(self, instance, validated_data):
+        areas = validated_data.pop("areas_activas", None)
+        segmento = super().update(instance, validated_data)
+        if areas is not None:
+            segmento.asignar_areas(areas)
+        return segmento
 
 
 class PerfilSerializer(serializers.ModelSerializer):

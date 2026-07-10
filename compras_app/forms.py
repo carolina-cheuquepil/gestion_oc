@@ -45,6 +45,20 @@ class CorreoDestinatarioForm(forms.ModelForm):
 
 # ----------- Compras ------------
 class CompraForm(forms.ModelForm):
+    INICIO_COTIZACION = "cotizacion"
+    INICIO_FACTURA = "factura"
+    INICIO_COMPRA_CHOICES = (
+        (INICIO_COTIZACION, "Iniciar con Cotización"),
+        (INICIO_FACTURA, "Iniciar con Factura"),
+    )
+
+    inicio_compra = forms.ChoiceField(
+        choices=INICIO_COMPRA_CHOICES,
+        initial=INICIO_COTIZACION,
+        label="Cómo inicia la compra",
+        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+    )
+
     folio_cotizacion = forms.CharField(
         required=False,
         label="Folio cotización",
@@ -79,6 +93,8 @@ class CompraForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields.pop("inicio_compra", None)
         self.fields["folio"].label = "Folio OC"
         self.fields["fecha_emision"].label = "Fecha OC"
         self.fields["estado_documento"].label = "Estado compra"

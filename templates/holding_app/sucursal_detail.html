@@ -54,47 +54,6 @@
 </div>
 
 <div class="row g-3">
-  <div class="col-12 col-xl-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body p-0">
-        <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h5 class="mb-0 fw-bold">Telefonos</h5>
-          <span class="badge bg-light text-dark">{{ sucursal.telefonos.all|length }}</span>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Area</th>
-                <th>Tipo</th>
-                <th>Numero</th>
-                <th class="text-center">Principal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for telefono in sucursal.telefonos.all %}
-              <tr>
-                <td>{{ telefono.sucursal_area.area|default:"-" }}</td>
-                <td>{{ telefono.tipo_telefono|default:"-" }}</td>
-                <td class="fw-semibold">{{ telefono.numero }}</td>
-                <td class="text-center">
-                  {% if telefono.principal %}
-                    <span class="badge bg-primary">Si</span>
-                  {% else %}
-                    <span class="text-muted">No</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="4" class="text-center text-muted py-3">Sin telefonos registrados.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="col-12">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body p-0">
@@ -139,6 +98,7 @@
                         <tr>
                           <th>Area</th>
                           <th>Tipo</th>
+                          <th>Telefonos / anexos</th>
                           <th class="text-center">Estado</th>
                         </tr>
                       </thead>
@@ -147,6 +107,21 @@
                           <tr>
                             <td class="fw-semibold">{{ area.area }}</td>
                             <td>{{ area.tipo|default:"-" }}</td>
+                            <td>
+                              {% for telefono in area.telefonos.all %}
+                                <div{% if not forloop.last %} class="mb-1"{% endif %}>
+                                  {% if telefono.tipo_telefono %}
+                                    <span class="text-muted">{{ telefono.tipo_telefono }}:</span>
+                                  {% endif %}
+                                  <span class="fw-semibold">{{ telefono.numero }}</span>
+                                  {% if telefono.principal %}
+                                    <span class="badge bg-primary ms-1">Principal</span>
+                                  {% endif %}
+                                </div>
+                              {% empty %}
+                                <span class="text-muted">Sin telefonos asociados</span>
+                              {% endfor %}
+                            </td>
                             <td class="text-center">
                               {% if area.activa %}
                                 <span class="badge bg-success">Activa</span>
@@ -157,7 +132,7 @@
                           </tr>
                         {% empty %}
                           <tr>
-                            <td colspan="3" class="text-center text-muted py-3">
+                            <td colspan="4" class="text-center text-muted py-3">
                               Sin areas asociadas a este piso.
                             </td>
                           </tr>
@@ -183,35 +158,79 @@
           <h5 class="mb-0 fw-bold">Segmentos de red</h5>
           <span class="badge bg-light text-dark">{{ sucursal.segmentos_red.all|length }}</span>
         </div>
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Area</th>
-                <th>Segmento</th>
-                <th>Nombre</th>
-                <th class="text-center">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for segmento in sucursal.segmentos_red.all %}
-              <tr>
-                <td>{{ segmento.sucursal_area.area|default:"-" }}</td>
-                <td class="fw-semibold">{{ segmento.segmento }}</td>
-                <td>{{ segmento.segmento_nombre }}</td>
-                <td class="text-center">
+        <div class="accordion accordion-flush" id="segmentos-areas">
+          {% for segmento in sucursal.segmentos_red.all %}
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="segmento-heading-{{ segmento.pk }}">
+                <button
+                  class="accordion-button{% if not forloop.first %} collapsed{% endif %}"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#segmento-collapse-{{ segmento.pk }}"
+                  aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                  aria-controls="segmento-collapse-{{ segmento.pk }}"
+                >
+                  <span class="fw-semibold me-2">{{ segmento.segmento }}</span>
+                  <span class="text-muted me-2">{{ segmento.segmento_nombre }}</span>
                   {% if segmento.activa %}
-                    <span class="badge bg-success">Activa</span>
+                    <span class="badge bg-success me-2">Activa</span>
                   {% else %}
-                    <span class="badge bg-secondary">Inactiva</span>
+                    <span class="badge bg-secondary me-2">Inactiva</span>
                   {% endif %}
-                </td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="4" class="text-center text-muted py-3">Sin segmentos registrados.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  <span class="badge bg-light text-dark">
+                    {{ segmento.asignaciones_activas|length }} areas
+                  </span>
+                </button>
+              </h2>
+              <div
+                id="segmento-collapse-{{ segmento.pk }}"
+                class="accordion-collapse collapse{% if forloop.first %} show{% endif %}"
+                aria-labelledby="segmento-heading-{{ segmento.pk }}"
+                data-bs-parent="#segmentos-areas"
+              >
+                <div class="accordion-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-sm mb-0 align-middle">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Area</th>
+                          <th>Piso</th>
+                          <th>Tipo</th>
+                          <th class="text-center">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for asignacion in segmento.asignaciones_activas %}
+                          {% with area=asignacion.sucursal_area %}
+                            <tr>
+                              <td class="fw-semibold">{{ area.area }}</td>
+                              <td>{{ area.sucursal_piso.piso|default:"-" }}</td>
+                              <td>{{ area.tipo|default:"-" }}</td>
+                              <td class="text-center">
+                                {% if area.activa %}
+                                  <span class="badge bg-success">Activa</span>
+                                {% else %}
+                                  <span class="badge bg-secondary">Inactiva</span>
+                                {% endif %}
+                              </td>
+                            </tr>
+                          {% endwith %}
+                        {% empty %}
+                          <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                              Sin areas asociadas a este segmento.
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="text-center text-muted py-4">Sin segmentos registrados.</div>
+          {% endfor %}
         </div>
       </div>
     </div>

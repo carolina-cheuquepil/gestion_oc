@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+{% block title %}Eliminar compra{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Eliminar compra</h1>
+  <a class="btn btn-outline-secondary" href="{% url 'compra_detail' compra.pk %}">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+<form method="post" class="card border-0 shadow-sm">
+  {% csrf_token %}
+  <div class="card-body p-4">
+    <p class="mb-1">Se eliminara la siguiente compra:</p>
+    <p class="mb-1 fw-semibold">Compra #{{ compra.pk }} - {{ compra.folio|default:"SIN FOLIO" }}</p>
+    <p class="mb-0 text-muted">{{ compra.razon_social }} - {{ compra.proveedor }}</p>
+  </div>
+  <div class="card-footer bg-white d-flex gap-2 justify-content-end">
+    <a class="btn btn-outline-secondary" href="{% url 'compra_detail' compra.pk %}">Cancelar</a>
+    <button type="submit" class="btn btn-danger">
+      <i class="bi bi-trash me-1"></i>Eliminar
+    </button>
+  </div>
+</form>
+{% endblock %}

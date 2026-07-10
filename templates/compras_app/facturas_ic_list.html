@@ -14,42 +14,31 @@
   <table class="table table-hover">
     <thead>
       <tr>
-        <th>N°</th>
         <th>Folio</th>
-        <th>Fecha</th>
+        <th>Empresa Origen</th>
         <th>Empresa Emisora</th>
         <th>Empresa Receptora</th>
-        <th>Compra Origen</th>
         <th class="text-end">Total</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for f in facturas %}
       <tr>
-        <td class="text-muted">{{ f.factura_intercompany_id }}</td>
         <td>{{ f.folio|default:"—" }}</td>
-        <td>{{ f.fecha_emision|date:"d-m-Y" }}</td>
-        <td>{{ f.empresa_emisora }}</td>
-        <td>{{ f.empresa_receptora }}</td>
         <td>
-          {% if f.compra_origen %}
-            Compra #{{ f.compra_origen.compra_id }}
-          {% else %}—{% endif %}
+          {{ f.compra_origen__proveedor__nombre|default:f.compra_origen__proveedor__razon_social|default:"—" }}
         </td>
-        <td class="text-end fw-semibold">{{ f.total|moneda:f.moneda }}</td>
         <td>
-          <a class="btn btn-sm btn-outline-primary me-1" href="{% url 'factura_ic_detail' f.pk %}">
-            <i class="bi bi-eye me-1"></i>Ver
-          </a>
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'factura_ic_update' f.pk %}">
-            <i class="bi bi-pencil me-1"></i>Editar
-          </a>
+          {{ f.empresa_emisora__nombre|default:f.empresa_emisora__razon_social }}
         </td>
+        <td>
+          {{ f.empresa_receptora__nombre|default:f.empresa_receptora__razon_social }}
+        </td>
+        <td class="text-end fw-semibold">{{ f.total|moneda:f.moneda__codigo }}</td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="8" class="text-center text-muted py-4">No hay facturas registradas.</td>
+        <td colspan="5" class="text-center text-muted py-4">No hay facturas registradas.</td>
       </tr>
       {% endfor %}
     </tbody>

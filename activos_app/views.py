@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -102,10 +103,14 @@ def registrar_recepciones_en_custodia_informatica(recepciones):
 @login_sucursal_required
 def activos_fijos_list(request):
     activos = _activos_queryset().filter(
-        sucursal_id=sucursal_actual_id(request),
-    ).order_by("sucursal__nombre", "nombre_activo")
+        recepcion_compra_item__compra_item__ventas_ic__factura_ic__empresa_receptora_id=F(
+            "sucursal__empresa_id",
+        ),
+    ).distinct().order_by("sucursal__nombre", "nombre_activo")
     return render(request, "activos_app/activos_list.html", {
         "activos": activos,
+        "subtitulo": "Activos facturados a empresas internas de Dimarsa",
+        "empty_message": "No hay activos facturados a empresas internas.",
         "codigo_pendiente_prefix": CODIGO_INVENTARIO_PENDIENTE_PREFIX,
     })
 

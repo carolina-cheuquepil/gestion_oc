@@ -91,7 +91,7 @@
   <div class="col-12 col-lg-4">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body p-4">
-        <div class="section-title">Totales</div>
+        <div class="section-title">Totales OC ({{ compra.moneda.codigo }})</div>
         <table class="table table-borderless mb-0">
           <tbody>
             <tr class="totals-row">
@@ -110,6 +110,28 @@
             </tr>
           </tbody>
         </table>
+        {% if factura_clp %}
+        <hr class="my-3">
+        <div class="section-title mb-1">
+          Factura {{ factura_clp.folio|default:"SIN FOLIO" }} (CLP)
+        </div>
+        <table class="table table-borderless mb-0">
+          <tbody>
+            <tr class="totals-row">
+              <td>Neto</td>
+              <td>{{ factura_clp.factura_total_neto_clp|moneda:"CLP" }}</td>
+            </tr>
+            <tr class="totals-row">
+              <td>IVA</td>
+              <td>{{ factura_clp.factura_total_iva_clp|moneda:"CLP" }}</td>
+            </tr>
+            <tr class="totals-row grand-total">
+              <td>Total</td>
+              <td>{{ factura_clp.factura_total_clp|moneda:"CLP" }}</td>
+            </tr>
+          </tbody>
+        </table>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -179,6 +201,7 @@
             <th>Estado</th>
             <th>Folio</th>
             <th>Fecha doc.</th>
+            <th>Montos factura</th>
             <th>Archivo</th>
           </tr>
         </thead>
@@ -190,6 +213,15 @@
             <td>{{ h.estado_documento }}</td>
             <td>{{ h.folio|default:"—" }}</td>
             <td>{{ h.fecha_documento|date:"d-m-Y"|default:"—" }}</td>
+            <td>
+              {% if h.factura_total_clp is not None %}
+                <div class="small">Neto: {{ h.factura_total_neto_clp|moneda:"CLP" }}</div>
+                <div class="small">IVA: {{ h.factura_total_iva_clp|moneda:"CLP" }}</div>
+                <div class="fw-semibold">Total: {{ h.factura_total_clp|moneda:"CLP" }}</div>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
             <td>
               {% if h.archivo %}
                 <a href="{{ h.archivo.url }}" target="_blank" class="text-primary text-decoration-none">
@@ -212,6 +244,9 @@
 <div class="d-flex flex-wrap gap-2">
   <a class="btn btn-primary btn-sm px-3" href="{% url 'compra_update' compra.pk %}">
     <i class="bi bi-pencil me-1"></i>Editar
+  </a>
+  <a class="btn btn-outline-danger btn-sm px-3" href="{% url 'compra_delete' compra.pk %}">
+    <i class="bi bi-trash me-1"></i>Eliminar
   </a>
   {% if compra.estado_documento.nombre == "Aprobado" %}
   <a class="btn btn-success btn-sm px-3" href="{% url 'registrar_factura_recepcion' compra.pk %}">

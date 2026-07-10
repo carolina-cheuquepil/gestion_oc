@@ -358,7 +358,7 @@
       <table class="table table-sm align-middle">
         <thead>
           <tr>
-            <th>Area</th>
+            <th>Areas</th>
             <th>Red guardada</th>
             <th>Segmento</th>
             <th>Nombre segmento</th>
@@ -371,9 +371,9 @@
             <tr>
               <td>
                 {% for hidden in segmento_form.hidden_fields %}{{ hidden }}{% endfor %}
-                {{ segmento_form.sucursal_area }}
-                {% if segmento_form.sucursal_area.errors %}
-                  <div class="invalid-feedback d-block">{{ segmento_form.sucursal_area.errors }}</div>
+                {{ segmento_form.sucursal_areas }}
+                {% if segmento_form.sucursal_areas.errors %}
+                  <div class="invalid-feedback d-block">{{ segmento_form.sucursal_areas.errors }}</div>
                 {% endif %}
               </td>
               <td>
@@ -426,7 +426,7 @@
       <tr>
         <td>
           {% for hidden in segmento_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
-          {{ segmento_formset.empty_form.sucursal_area }}
+          {{ segmento_formset.empty_form.sucursal_areas }}
         </td>
         <td>{{ segmento_formset.empty_form.red_guardada }}</td>
         <td>{{ segmento_formset.empty_form.segmento }}</td>

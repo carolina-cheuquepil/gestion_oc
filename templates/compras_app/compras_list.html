@@ -9,6 +9,38 @@
   </a>
 </div>
 
+<form method="get" class="card card-body mb-3">
+  <div class="row g-3 align-items-end">
+    <div class="col-sm-6 col-lg-4">
+      <label for="orden" class="form-label">Ordenar por</label>
+      <select id="orden" name="orden" class="form-select">
+        <option value="proveedor" {% if orden == "proveedor" %}selected{% endif %}>Proveedor (predeterminado)</option>
+        <option value="fecha_desc" {% if orden == "fecha_desc" %}selected{% endif %}>Fecha documento: más reciente</option>
+        <option value="fecha_asc" {% if orden == "fecha_asc" %}selected{% endif %}>Fecha documento: más antigua</option>
+        <option value="estado_asc" {% if orden == "estado_asc" %}selected{% endif %}>Estado: A–Z</option>
+        <option value="estado_desc" {% if orden == "estado_desc" %}selected{% endif %}>Estado: Z–A</option>
+      </select>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <label for="estado" class="form-label">Estado de la compra</label>
+      <select id="estado" name="estado" class="form-select">
+        <option value="">Todos los estados</option>
+        {% for estado in estados_disponibles %}
+          <option value="{{ estado }}" {% if estado == estado_seleccionado %}selected{% endif %}>{{ estado }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-lg-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-arrow-down-up me-1"></i>Aplicar
+      </button>
+      {% if orden != "proveedor" or estado_seleccionado %}
+        <a href="{% url 'compras_ui' %}" class="btn btn-outline-secondary">Limpiar</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
 <div class="table-wrapper">
   <table class="table table-hover">
     <thead>
@@ -24,24 +56,34 @@
       </tr>
     </thead>
     <tbody>
-      {% for grupo in compras_por_proveedor %}
-        <tr class="table-light">
-          <td colspan="8" class="fw-semibold">
-            {{ grupo.proveedor|default:"Sin proveedor" }}
-          </td>
-        </tr>
-        {% for c in grupo.compras %}
+      {% if mostrar_grupos_proveedor %}
+        {% for grupo in compras_por_proveedor %}
+          <tr class="table-light">
+            <td colspan="8" class="fw-semibold">
+              {{ grupo.proveedor|default:"Sin proveedor" }}
+            </td>
+          </tr>
+          {% for c in grupo.compras %}
+            {% include "compras_app/_compra_row.html" %}
+          {% empty %}
+            <tr>
+              <td colspan="8" class="text-muted py-3">No hay compras registradas para este proveedor.</td>
+            </tr>
+          {% endfor %}
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">No hay compras que coincidan con los criterios.</td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        {% for c in compras_ordenadas %}
           {% include "compras_app/_compra_row.html" %}
         {% empty %}
           <tr>
-            <td colspan="8" class="text-muted py-3">No hay compras registradas para este proveedor.</td>
+            <td colspan="8" class="text-center text-muted py-4">No hay compras que coincidan con los criterios.</td>
           </tr>
         {% endfor %}
-      {% empty %}
-        <tr>
-          <td colspan="8" class="text-center text-muted py-4">No hay compras registradas.</td>
-        </tr>
-      {% endfor %}
+      {% endif %}
     </tbody>
   </table>
 </div>

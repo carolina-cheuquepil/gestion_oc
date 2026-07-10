@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Perfil, SegmentoRed, Sucursal, SucursalArea, SucursalPiso, SucursalTelefono, Usuario
+from .models import (
+    Perfil,
+    SegmentoRed,
+    SegmentoRedArea,
+    Sucursal,
+    SucursalArea,
+    SucursalPiso,
+    SucursalTelefono,
+    Usuario,
+)
 
 
 @admin.register(Sucursal)
@@ -45,16 +54,39 @@ class SucursalPisoAdmin(admin.ModelAdmin):
 
 @admin.register(SegmentoRed)
 class SegmentoRedAdmin(admin.ModelAdmin):
-    list_display = ("segmento_red_id", "sucursal", "sucursal_area", "segmento", "segmento_nombre", "activa")
-    list_filter = ("activa", "sucursal__empresa", "sucursal_area__tipo")
+    list_display = (
+        "segmento_red_id",
+        "sucursal",
+        "areas_asignadas",
+        "segmento",
+        "segmento_nombre",
+        "activa",
+    )
+    list_filter = ("activa", "sucursal__empresa", "areas__tipo")
     search_fields = (
         "segmento",
         "segmento_nombre",
         "sucursal__nombre",
         "sucursal__codigo_sucursal",
-        "sucursal_area__area",
-        "sucursal_area__tipo",
+        "areas__area",
+        "areas__tipo",
     )
+
+    @admin.display(description="Areas")
+    def areas_asignadas(self, obj):
+        return ", ".join(
+            asignacion.sucursal_area.area
+            for asignacion in obj.asignaciones_area.filter(
+                activa=True,
+            ).select_related("sucursal_area")
+        ) or "-"
+
+
+@admin.register(SegmentoRedArea)
+class SegmentoRedAreaAdmin(admin.ModelAdmin):
+    list_display = ("segmento_red_area_id", "segmento_red", "sucursal_area", "activa")
+    list_filter = ("activa",)
+    search_fields = ("segmento_red__segmento", "sucursal_area__area")
 
 
 @admin.register(Perfil)

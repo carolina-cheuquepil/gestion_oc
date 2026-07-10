@@ -1,7 +1,7 @@
 #PASO 3° BD: CRUD completo
 #FrontEnd C: Paso 3
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Compra, CorreoDestinatario, HistorialCompra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, TipoDocumento, EstadoDocumento, TipoOC, Moneda, ProyectoInformatica, ProyectoInformaticaCosto
+from .models import Compra, CompraSolicitud, CorreoDestinatario, HistorialCompra, CompraItem, FacturaIntercompany, FacturaIntercompanyItem, TipoDocumento, EstadoDocumento, TipoOC, Moneda, ProyectoInformatica, ProyectoInformaticaCosto
 from proveedores_app.models import ProveedorProducto, ProveedorProductoPrecio
 from .serializers import CompraSerializer
 from rest_framework.viewsets import ModelViewSet
@@ -11,9 +11,10 @@ from django.views.generic import UpdateView
 from django.urls import reverse_lazy
 from django.conf import settings
 from django.contrib import messages
-from django.db import OperationalError, ProgrammingError, transaction
+from django.db import IntegrityError, OperationalError, ProgrammingError, transaction
 from django.http import HttpResponseRedirect, JsonResponse
 from django.db.models import Count, Exists, OuterRef, Sum
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.db.models import Max
 from decimal import Decimal
@@ -28,6 +29,7 @@ from django.template.loader import render_to_string
 import mimetypes
 import smtplib
 import calendar
+import uuid
 
 
 class CompraViewSet(ModelViewSet):
@@ -38,6 +40,12 @@ class CompraViewSet(ModelViewSet):
 IVA_PCT = Decimal("0.19")
 RETENCION_PCT = Decimal("0.1375")
 TIPO_PRODUCTO_SERVICIO_ID = 3
+
+
+def _redirect_compra_creada(compra, inicio_compra):
+    if inicio_compra == CompraForm.INICIO_FACTURA:
+        return redirect("registrar_factura_recepcion", pk=compra.pk)
+    return redirect("compra_update", pk=compra.pk)
 
 
 def _sumar_un_mes(fecha):
@@ -212,6 +220,70 @@ def correo_destinatario_delete(request, pk):
     )
 
 #----------------- Compras IT ---------------
+ORDENES_COMPRAS = {
+    "proveedor",
+    "fecha_desc",
+    "fecha_asc",
+    "estado_asc",
+    "estado_desc",
+}
+
+
+def _estado_ultimo_documento(compra):
+    historial = getattr(compra, "ultimo_historial", None)
+    estado = getattr(historial, "estado_documento", None)
+    return str(estado) if estado else ""
+
+
+def _fecha_ultimo_documento(compra):
+    historial = getattr(compra, "ultimo_historial", None)
+    return getattr(historial, "fecha_documento", None)
+
+
+def _ordenar_compras(compras, orden):
+    if orden == "fecha_desc":
+        return sorted(
+            compras,
+            key=lambda compra: (
+                _fecha_ultimo_documento(compra) is None,
+                -_fecha_ultimo_documento(compra).toordinal()
+                if _fecha_ultimo_documento(compra)
+                else 0,
+                -compra.compra_id,
+            ),
+        )
+    if orden == "fecha_asc":
+        return sorted(
+            compras,
+            key=lambda compra: (
+                _fecha_ultimo_documento(compra) is None,
+                _fecha_ultimo_documento(compra).toordinal()
+                if _fecha_ultimo_documento(compra)
+                else 0,
+                compra.compra_id,
+            ),
+        )
+    if orden in {"estado_asc", "estado_desc"}:
+        con_estado = [compra for compra in compras if _estado_ultimo_documento(compra)]
+        sin_estado = [compra for compra in compras if not _estado_ultimo_documento(compra)]
+        con_estado.sort(
+            key=lambda compra: (
+                _estado_ultimo_documento(compra).casefold(),
+                compra.compra_id,
+            ),
+            reverse=orden == "estado_desc",
+        )
+        return con_estado + sorted(sin_estado, key=lambda compra: compra.compra_id)
+    return sorted(
+        compras,
+        key=lambda compra: (
+            str(compra.proveedor or "").casefold(),
+            compra.fecha_emision,
+            compra.compra_id,
+        ),
+    )
+
+
 @login_sucursal_required
 def compras_frontend(request):
     oc_enviada_sub = HistorialCompra.objects.filter(
@@ -266,11 +338,7 @@ def compras_frontend(request):
         pago_registrado=Exists(pago_registrado_sub),
     )
 
-    compras_por_proveedor = []
-    compras_list = sorted(
-        list(compras),
-        key=lambda compra: (str(compra.proveedor or "").lower(), compra.fecha_emision, compra.compra_id),
-    )
+    compras_list = list(compras)
     for compra in compras_list:
         compra.ultimo_historial = (
             compra.historial_ordenado[0]
@@ -287,19 +355,50 @@ def compras_frontend(request):
             ),
             None,
         )
-        if not compras_por_proveedor or compras_por_proveedor[-1]["proveedor"] != compra.proveedor:
-            compras_por_proveedor.append({
-                "proveedor": compra.proveedor,
-                "compras": [],
-            })
-        compras_por_proveedor[-1]["compras"].append(compra)
+
+    estados_disponibles = sorted(
+        {
+            _estado_ultimo_documento(compra)
+            for compra in compras_list
+            if _estado_ultimo_documento(compra)
+        },
+        key=str.casefold,
+    )
+    estado_seleccionado = request.GET.get("estado", "").strip()
+    if estado_seleccionado:
+        compras_list = [
+            compra
+            for compra in compras_list
+            if _estado_ultimo_documento(compra).casefold()
+            == estado_seleccionado.casefold()
+        ]
+
+    orden = request.GET.get("orden", "proveedor")
+    if orden not in ORDENES_COMPRAS:
+        orden = "proveedor"
+    compras_list = _ordenar_compras(compras_list, orden)
+
+    compras_por_proveedor = []
+    if orden == "proveedor":
+        for compra in compras_list:
+            if not compras_por_proveedor or compras_por_proveedor[-1]["proveedor"] != compra.proveedor:
+                compras_por_proveedor.append({
+                    "proveedor": compra.proveedor,
+                    "compras": [],
+                })
+            compras_por_proveedor[-1]["compras"].append(compra)
 
     return render(
         request,
         "compras_app/compras_list.html",
         {
             "compras": compras,
+            "compras_ordenadas": compras_list,
             "compras_por_proveedor": compras_por_proveedor,
+            "estados_disponibles": estados_disponibles,
+            "estado_seleccionado": estado_seleccionado,
+            "orden": orden,
+            "mostrar_grupos_proveedor": orden == "proveedor",
         },
     )
 
@@ -310,7 +409,12 @@ def compra_detail(request, pk):
         Compra.objects.select_related(
             "tipo_documento", "estado_documento", "proveedor", "razon_social", "moneda"
         ).prefetch_related(
-            "historial",
+            Prefetch(
+                "historial",
+                queryset=HistorialCompra.objects.select_related(
+                    "tipo_documento", "estado_documento"
+                ).order_by("-fecha_evento", "-historial_compra_id"),
+            ),
             Prefetch(
                 "items",
                 queryset=CompraItem.objects.select_related("producto"),
@@ -319,16 +423,60 @@ def compra_detail(request, pk):
         pk=pk,
     )
     _sincronizar_compra_con_historial(compra)
-    return render(request, "compras_app/compra_detail.html", {"compra": compra})
+    facturas_clp = [
+        historial
+        for historial in compra.historial.all()
+        if historial.tipo_documento.codigo == "FACT"
+        and historial.factura_total_clp is not None
+    ]
+    return render(
+        request,
+        "compras_app/compra_detail.html",
+        {
+            "compra": compra,
+            "factura_clp": facturas_clp[0] if facturas_clp else None,
+        },
+    )
+
+
+@login_sucursal_required
+def compra_delete(request, pk):
+    compra = get_object_or_404(
+        Compra.objects.select_related("proveedor", "razon_social", "moneda"),
+        pk=pk,
+    )
+    if request.method == "POST":
+        compra_id = compra.pk
+        try:
+            compra.delete()
+        except ProtectedError:
+            messages.error(
+                request,
+                "No se puede eliminar la compra porque tiene registros asociados.",
+            )
+            return redirect("compra_detail", pk=compra_id)
+        messages.success(request, f"Compra #{compra_id} eliminada.")
+        return redirect("compras_ui")
+    return render(
+        request,
+        "compras_app/compra_confirm_delete.html",
+        {"compra": compra},
+    )
 
 
 @transaction.atomic
 @login_sucursal_required
 def compra_create(request):
     if request.method == "POST":
+        submission_token = request.POST.get("submission_token", "").strip()
         form = CompraForm(request.POST, request.FILES)
 
         form_ok = form.is_valid()
+        try:
+            uuid.UUID(submission_token)
+        except (TypeError, ValueError, AttributeError):
+            form.add_error(None, "La solicitud de guardado no es valida. Recarga el formulario.")
+            form_ok = False
 
         proveedor_id = request.POST.get("proveedor") or None
         proveedor_id = int(proveedor_id) if proveedor_id else None
@@ -344,6 +492,35 @@ def compra_create(request):
         formset_ok = formset.is_valid()
 
         if form_ok and formset_ok:
+            inicio_compra = form.cleaned_data.get("inicio_compra")
+            try:
+                with transaction.atomic():
+                    solicitud = CompraSolicitud.objects.create(token=submission_token)
+            except IntegrityError:
+                solicitud = CompraSolicitud.objects.select_for_update().get(
+                    token=submission_token
+                )
+                if solicitud.compra_id:
+                    messages.info(
+                        request,
+                        "Esta compra ya habia sido guardada; no se creo un duplicado.",
+                    )
+                    if inicio_compra == CompraForm.INICIO_FACTURA:
+                        return redirect("registrar_factura_recepcion", pk=solicitud.compra_id)
+                    return redirect("compra_update", pk=solicitud.compra_id)
+                form.add_error(
+                    None,
+                    "La compra ya se esta guardando. Espera unos segundos antes de continuar.",
+                )
+                return render(request, "compras_app/compra_form.html", {
+                    "form": form,
+                    "formset": formset,
+                    "is_edit": False,
+                    "submission_token": submission_token,
+                    "tipos_oc": list(TipoOC.objects.values("tipo_oc_id", "afecta_iva", "requiere_retencion")),
+                    "monedas": list(Moneda.objects.values("moneda_id", "codigo")),
+                })
+
             td_oc = TipoDocumento.objects.filter(codigo="OC").first()
             if td_oc and compra_tmp:
                 compra_tmp.tipo_documento = td_oc
@@ -353,32 +530,33 @@ def compra_create(request):
             oc_folio = compra.folio
             oc_fecha_emision = compra.fecha_emision
 
-            folio_cot = form.cleaned_data.get("folio_cotizacion") or ""
-            fecha_cot = form.cleaned_data.get("fecha_cotizacion")
             archivo_cot = request.FILES.get("cotizacion_archivo")
-            if folio_cot or fecha_cot or archivo_cot:
-                td_cot = TipoDocumento.objects.filter(codigo="COT").first()
-                if td_cot:
-                    estado_cot = (
-                        EstadoDocumento.objects.filter(nombre="Recibido").first()
-                        if archivo_cot else compra.estado_documento
-                    )
-                    _crear_historial_documento(
-                        compra=compra,
-                        tipo_documento=td_cot,
-                        estado_documento=estado_cot,
-                        folio=folio_cot,
-                        fecha_documento=fecha_cot,
-                        archivo=archivo_cot,
-                    )
+            if inicio_compra == CompraForm.INICIO_COTIZACION:
+                folio_cot = form.cleaned_data.get("folio_cotizacion") or ""
+                fecha_cot = form.cleaned_data.get("fecha_cotizacion")
+                if folio_cot or fecha_cot or archivo_cot:
+                    td_cot = TipoDocumento.objects.filter(codigo="COT").first()
+                    if td_cot:
+                        estado_cot = (
+                            EstadoDocumento.objects.filter(nombre="Recibido").first()
+                            if archivo_cot else compra.estado_documento
+                        )
+                        _crear_historial_documento(
+                            compra=compra,
+                            tipo_documento=td_cot,
+                            estado_documento=estado_cot,
+                            folio=folio_cot,
+                            fecha_documento=fecha_cot,
+                            archivo=archivo_cot,
+                        )
 
-            _crear_historial_documento(
-                compra=compra,
-                tipo_documento=oc_tipo_documento,
-                estado_documento=oc_estado_documento,
-                folio=oc_folio,
-                fecha_documento=oc_fecha_emision,
-            )
+                _crear_historial_documento(
+                    compra=compra,
+                    tipo_documento=oc_tipo_documento,
+                    estado_documento=oc_estado_documento,
+                    folio=oc_folio,
+                    fecha_documento=oc_fecha_emision,
+                )
 
             formset.instance = compra
             items = formset.save(commit=False)
@@ -426,8 +604,13 @@ def compra_create(request):
 
             formset.save_m2m()
             _recalcular_totales_compra(compra)
+            solicitud.compra_id = compra.pk
+            solicitud.save(update_fields=["compra_id"])
 
-            if request.POST.get("guardar_y_enviar_oc") == "1":
+            if (
+                inicio_compra == CompraForm.INICIO_COTIZACION
+                and request.POST.get("guardar_y_enviar_oc") == "1"
+            ):
                 if archivo_cot and (compra.folio or "").strip():
                     enviado, error = solicitar_aprobacion_oc(compra)
                     if enviado:
@@ -441,7 +624,7 @@ def compra_create(request):
                     )
                 return redirect("compras_ui")
 
-            return redirect("compra_update", pk=compra.pk)
+            return _redirect_compra_creada(compra, inicio_compra)
 
         print("FORM errors:", form.errors)
         print("FORMSET errors:", formset.errors)
@@ -451,6 +634,7 @@ def compra_create(request):
             "form": form,
             "formset": formset,
             "is_edit": False,
+            "submission_token": submission_token or str(uuid.uuid4()),
             "tipos_oc": list(TipoOC.objects.values("tipo_oc_id", "afecta_iva", "requiere_retencion")),
             "monedas": list(Moneda.objects.values("moneda_id", "codigo")),
         })
@@ -462,6 +646,7 @@ def compra_create(request):
         "form": form,
         "formset": formset,
         "is_edit": False,
+        "submission_token": str(uuid.uuid4()),
         "tipos_oc": list(TipoOC.objects.values("tipo_oc_id", "afecta_iva", "requiere_retencion")),
         "monedas": list(Moneda.objects.values("moneda_id", "codigo")),
     })
@@ -612,7 +797,27 @@ compra_update = CompraUpdateView.as_view()
 # ----------- Distribución interna ------------
 @login_sucursal_required
 def facturas_ic_frontend(request):
-    facturas = FacturaIntercompany.objects.all().distinct()
+    facturas = (
+        FacturaIntercompany.objects.values(
+            "folio",
+            "compra_origen_id",
+            "compra_origen__proveedor__nombre",
+            "compra_origen__proveedor__razon_social",
+            "empresa_emisora_id",
+            "empresa_emisora__nombre",
+            "empresa_emisora__razon_social",
+            "empresa_receptora_id",
+            "empresa_receptora__nombre",
+            "empresa_receptora__razon_social",
+            "moneda_id",
+            "moneda__codigo",
+        )
+        .annotate(
+            total=Sum("total"),
+            ultima_factura_id=Max("factura_ic_id"),
+        )
+        .order_by("-ultima_factura_id")
+    )
     return render(
         request,
         "compras_app/facturas_ic_list.html",
@@ -1528,6 +1733,33 @@ def proyecto_create(request):
     else:
         form = ProyectoForm()
     return render(request, "compras_app/proyecto_form.html", {"form": form, "is_edit": False})
+
+
+@login_sucursal_required
+def proyecto_create_ajax(request):
+    if request.method != "POST":
+        return JsonResponse(
+            {"ok": False, "error": "Metodo no permitido."},
+            status=405,
+        )
+
+    form = ProyectoForm(request.POST)
+    if not form.is_valid():
+        errors = {
+            field: [str(error) for error in field_errors]
+            for field, field_errors in form.errors.items()
+        }
+        return JsonResponse({"ok": False, "errors": errors}, status=400)
+
+    proyecto = form.save()
+    return JsonResponse(
+        {
+            "ok": True,
+            "proyecto_id": proyecto.pk,
+            "proyecto_nombre": proyecto.proyecto_nombre,
+        },
+        status=201,
+    )
 
 
 @login_sucursal_required

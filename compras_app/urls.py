@@ -1,10 +1,11 @@
 from django.urls import path
 from .views import (
-    compras_frontend, compra_detail, compra_update, compra_create,
+    compras_frontend, compra_detail, compra_update, compra_create, compra_delete,
     correos_destinatarios_list, correo_destinatario_create, correo_destinatario_update, correo_destinatario_delete,
     factura_ic_create, factura_ic_update, factura_ic_detail, facturas_ic_frontend,
     holding_por_codigo, enviar_oc, cotizacion_upload, aprobar_oc,
-    proyectos_list, proyecto_activos, proyecto_create, proyecto_update, proyecto_delete, proyecto_costo_delete,
+    proyectos_list, proyecto_activos, proyecto_create, proyecto_create_ajax,
+    proyecto_update, proyecto_delete, proyecto_costo_delete,
     registrar_factura_recepcion, recepcion_productos_list, registrar_recepcion_productos,
     registrar_ingreso_contabilidad, registrar_pago,
 )
@@ -15,6 +16,7 @@ urlpatterns = [
     path("compras/ui/", compras_frontend, name="compras_ui"),
     path("compras/ui/<int:pk>/", compra_detail, name="compra_detail"),
     path("compras/ui/<int:pk>/editar/", compra_update, name="compra_update"),
+    path("compras/ui/<int:pk>/eliminar/", compra_delete, name="compra_delete"),
     path("compras/ui/nueva/", compra_create, name="compra_create"),
     path("compras/ui/<int:pk>/enviar/", enviar_oc, name="enviar_oc"),
     path("compras/ui/<int:pk>/cotizacion/subir/", cotizacion_upload, name="cotizacion_upload"),
@@ -40,6 +42,7 @@ urlpatterns = [
     path("proyectos/<int:pk>/activos/", proyecto_activos, name="proyecto_activos"),
     path("proyectos/<int:pk>/costos/<int:costo_pk>/eliminar/", proyecto_costo_delete, name="proyecto_costo_delete"),
     path("proyectos/nuevo/", proyecto_create, name="proyecto_create"),
+    path("proyectos/nuevo/ajax/", proyecto_create_ajax, name="proyecto_create_ajax"),
     path("proyectos/<int:pk>/editar/", proyecto_update, name="proyecto_update"),
     path("proyectos/<int:pk>/eliminar/", proyecto_delete, name="proyecto_delete"),
 ]

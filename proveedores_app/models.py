@@ -12,7 +12,7 @@ class Proveedor(models.Model):
 
     class Meta:
         managed = False
-        db_table = "proveedor"
+        db_table = "prov_proveedor"
 
     @property
     def rut_completo(self):
@@ -31,7 +31,7 @@ class Contacto(models.Model):
 
     class Meta:
         managed = False
-        db_table = "contacto"
+        db_table = "prov_contacto"
 
     def __str__(self):
         return f"{self.nombres} {self.apellidos}".strip()
@@ -58,7 +58,7 @@ class ProveedorContacto(models.Model):
 
     class Meta:
         managed = False
-        db_table = "proveedor_contacto"
+        db_table = "prov_proveedor_contacto"
         constraints = [
             models.UniqueConstraint(
                 fields=["proveedor", "contacto"],
